@@ -117,23 +117,151 @@ tfoot td{border-top:2px solid var(--border);font-weight:700;color:#fff}
 <body>
 <div id="authGate" style="position:fixed;inset:0;z-index:99999;background:#0f1117;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;font-family:Inter,system-ui,sans-serif">
   <div id="authLogo" style="margin-bottom:6px"></div>
-  <div style="color:#94a3b8;font-size:13px">Enter password to continue</div>
-  <input id="authPw" type="password" placeholder="Password" autocomplete="off" style="background:#1a1d27;border:1px solid #2a2d3a;color:#e2e8f0;padding:11px 14px;border-radius:8px;font-size:14px;width:250px;outline:none" onkeydown="if(event.key==='Enter')authCheck()">
-  <button onclick="authCheck()" style="background:#17F6A4;color:#0f1117;border:none;padding:11px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">Enter</button>
-  <div id="authErr" style="color:#ef4444;font-size:12px;height:14px"></div>
+
+  <div id="authStepPhone" style="display:flex;flex-direction:column;align-items:center;gap:14px">
+    <div style="color:#94a3b8;font-size:13px">Enter your phone number to sign in</div>
+    <input id="authPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 123-4567" style="background:#1a1d27;border:1px solid #2a2d3a;color:#e2e8f0;padding:11px 14px;border-radius:8px;font-size:14px;width:250px;outline:none">
+    <button id="authSendBtn" style="background:#17F6A4;color:#0f1117;border:none;padding:11px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;width:250px">Send code</button>
+  </div>
+
+  <div id="authStepCode" style="display:none;flex-direction:column;align-items:center;gap:14px">
+    <div style="color:#94a3b8;font-size:13px">Enter the code sent to <span id="authSentTo" style="color:#e2e8f0"></span></div>
+    <input id="authCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" style="background:#1a1d27;border:1px solid #2a2d3a;color:#e2e8f0;padding:11px 14px;border-radius:8px;font-size:18px;width:250px;outline:none;text-align:center;letter-spacing:.35em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">
+    <button id="authVerifyBtn" style="background:#17F6A4;color:#0f1117;border:none;padding:11px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;width:250px">Sign in</button>
+    <div style="display:flex;gap:18px">
+      <button id="authResendBtn" style="background:none;border:none;color:#64748b;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Resend code</button>
+      <button id="authBackBtn" style="background:none;border:none;color:#64748b;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Use another number</button>
+    </div>
+  </div>
+
+  <div id="authErr" style="color:#ef4444;font-size:12px;min-height:14px;text-align:center;max-width:320px;line-height:1.5"></div>
 </div>
 <script>
-function authCheck(){
-  var v=document.getElementById('authPw').value;
-  if(v==='rezthegoat2026'){ try{sessionStorage.setItem('bi_auth','1');}catch(e){} var g=document.getElementById('authGate'); if(g)g.style.display='none'; }
-  else { document.getElementById('authErr').textContent='Incorrect password'; document.getElementById('authPw').value=''; }
-}
-try{ if(sessionStorage.getItem('bi_auth')==='1'){ var _g=document.getElementById('authGate'); if(_g)_g.style.display='none'; } }catch(e){}
-document.addEventListener('DOMContentLoaded',function(){
-  var src=document.querySelector('header .logo svg'), box=document.getElementById('authLogo');
-  if(src&&box){ var c=src.cloneNode(true); c.setAttribute('height','48'); c.removeAttribute('width'); c.style.display='block'; box.appendChild(c); }
-  var i=document.getElementById('authPw'); if(i)i.focus();
-});
+(function(){
+  // Base URL of the st-bi auth worker. The Infobip API key lives there,
+  // never in this file. Deployed worker URL, no trailing slash.
+  var AUTH_API='https://st-bi-auth.brandon-3e4.workers.dev';
+
+  var TOKEN_KEY='bi_session';
+  var phoneSent=null, busy=false;
+
+  function $(id){ return document.getElementById(id); }
+  function err(msg){ var e=$('authErr'); if(e) e.textContent=msg||''; }
+
+  function setBusy(on,btn,label){
+    busy=on;
+    if(btn){ btn.disabled=on; btn.style.opacity=on?'.6':'1'; btn.style.cursor=on?'default':'pointer'; btn.textContent=on?label:btn.dataset.label; }
+  }
+
+  function getToken(){ try{ return localStorage.getItem(TOKEN_KEY); }catch(e){ return null; } }
+  function setToken(t){ try{ t?localStorage.setItem(TOKEN_KEY,t):localStorage.removeItem(TOKEN_KEY); }catch(e){} }
+  function unlock(){ var g=$('authGate'); if(g) g.style.display='none'; }
+
+  // Display formatting only — the worker does the real normalization.
+  function fmtUS(v){
+    var d=v.replace(/\D/g,'').slice(0,10);
+    if(d.length<=3) return d;
+    if(d.length<=6) return '('+d.slice(0,3)+') '+d.slice(3);
+    return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6);
+  }
+
+  async function post(path,body){
+    var res=await fetch(AUTH_API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    var data=null; try{ data=await res.json(); }catch(e){}
+    return {ok:res.ok,data:data||{}};
+  }
+
+  async function sendCode(resending){
+    if(busy) return;
+    var raw=resending?phoneSent:($('authPhone').value||'');
+    if(raw.replace(/\D/g,'').length<10){ err('Enter a full phone number.'); return; }
+    err('');
+    var btn=resending?$('authResendBtn'):$('authSendBtn');
+    setBusy(true,btn,'Sending…');
+    try{
+      var r=await post('/auth/start',{phone:raw});
+      if(!r.ok){ err(r.data.error||'Could not send the code.'); return; }
+      phoneSent=raw;
+      $('authSentTo').textContent=fmtUS(raw)||raw;
+      $('authStepPhone').style.display='none';
+      $('authStepCode').style.display='flex';
+      var c=$('authCode'); if(c){ c.value=''; c.focus(); }
+    }catch(e){
+      err('Network error. Check your connection and try again.');
+    }finally{
+      setBusy(false,btn);
+    }
+  }
+
+  async function verifyCode(){
+    if(busy) return;
+    var code=($('authCode').value||'').replace(/\D/g,'');
+    if(code.length<4){ err('Enter the code from the text.'); return; }
+    err('');
+    var btn=$('authVerifyBtn');
+    setBusy(true,btn,'Checking…');
+    try{
+      var r=await post('/auth/verify',{phone:phoneSent,code:code});
+      if(!r.ok||!r.data.token){
+        err(r.data.error||'That code did not work.');
+        var c=$('authCode'); if(c){ c.value=''; c.focus(); }
+        return;
+      }
+      setToken(r.data.token);
+      unlock();
+    }catch(e){
+      err('Network error. Check your connection and try again.');
+    }finally{
+      setBusy(false,btn);
+    }
+  }
+
+  function backToPhone(){
+    phoneSent=null; err('');
+    $('authStepCode').style.display='none';
+    $('authStepPhone').style.display='flex';
+    var p=$('authPhone'); if(p) p.focus();
+  }
+
+  // Validate any stored session before showing the form, so a signed-in
+  // teammate never sees the login flash on reload.
+  async function boot(){
+    var token=getToken();
+    if(token){
+      try{
+        var res=await fetch(AUTH_API+'/auth/session',{headers:{'Authorization':'Bearer '+token}});
+        if(res.ok){ unlock(); return; }
+      }catch(e){}
+      setToken(null);
+    }
+    var p=$('authPhone'); if(p) p.focus();
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    var src=document.querySelector('header .logo svg'), box=$('authLogo');
+    if(src&&box){ var c=src.cloneNode(true); c.setAttribute('height','48'); c.removeAttribute('width'); c.style.display='block'; box.appendChild(c); }
+
+    ['authSendBtn','authVerifyBtn','authResendBtn'].forEach(function(id){ var b=$(id); if(b) b.dataset.label=b.textContent; });
+
+    $('authSendBtn').addEventListener('click',function(){ sendCode(false); });
+    $('authVerifyBtn').addEventListener('click',verifyCode);
+    $('authResendBtn').addEventListener('click',function(){ sendCode(true); });
+    $('authBackBtn').addEventListener('click',backToPhone);
+
+    var ph=$('authPhone');
+    ph.addEventListener('input',function(){ if(ph.value.trim().charAt(0)!=='+') ph.value=fmtUS(ph.value); });
+    ph.addEventListener('keydown',function(e){ if(e.key==='Enter') sendCode(false); });
+
+    var cd=$('authCode');
+    cd.addEventListener('input',function(){
+      cd.value=cd.value.replace(/\D/g,'').slice(0,6);
+      if(cd.value.length===6) verifyCode();
+    });
+    cd.addEventListener('keydown',function(e){ if(e.key==='Enter') verifyCode(); });
+
+    boot();
+  });
+})();
 </script>
 <header>
   <div class="logo">
