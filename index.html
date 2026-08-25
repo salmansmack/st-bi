@@ -1,0 +1,2167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smacktok BI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh}
+:root{--accent:#17F6A4;--green:#17F6A4;--red:#ef4444;--yellow:#f59e0b;--blue:#3b82f6;--card:#1a1d27;--border:#2a2d3a}
+header{background:#1a1d27;border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.logo{display:flex;align-items:center}
+.paste-btn{background:var(--accent);border:none;color:#0f1117;padding:8px 16px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600}
+.paste-btn:hover{opacity:.85}
+.sync-status{font-size:11px;color:#64748b}
+.nav{background:#151821;border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:4px;overflow-x:auto;position:sticky;top:0;z-index:40}
+.nav button{background:none;border:none;border-bottom:2px solid transparent;color:#64748b;font-size:13px;font-weight:600;padding:14px 18px;cursor:pointer;white-space:nowrap}
+.nav button:hover{color:#94a3b8}
+.nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+main{padding:24px;max-width:1400px;margin:0 auto}
+.view{display:none}
+.view.active{display:block}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#1a1d27;border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:720px}
+.modal h2{font-size:16px;font-weight:700;margin-bottom:6px}
+.modal p{font-size:13px;color:#64748b;margin-bottom:14px;line-height:1.6}
+.modal textarea{width:100%;height:200px;background:#0f1117;border:1px solid var(--border);color:#e2e8f0;padding:12px;border-radius:8px;font-size:12px;font-family:monospace;resize:vertical}
+.modal textarea:focus{outline:1px solid var(--accent)}
+.modal-btns{display:flex;gap:10px;margin-top:14px;justify-content:flex-end}
+.modal-cancel{background:transparent;border:1px solid var(--border);color:#94a3b8;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px}
+.modal-load{background:var(--accent);border:none;color:#0f1117;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+.filter-bar{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px}
+.filter-bar h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:14px}
+.filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.filter-grid-dates{display:grid;grid-template-columns:repeat(3,minmax(240px,1fr));gap:18px}
+.filter-grid-dims{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+@media(max-width:900px){.filter-grid-dates{grid-template-columns:1fr}}
+.filter-item label{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;font-weight:600;min-height:18px}
+.filter-item label .hint{color:#475569;font-weight:400;text-transform:none;letter-spacing:0}
+.mode-toggle{display:flex;gap:2px;background:#0f1117;border:1px solid var(--border);border-radius:6px;padding:2px}
+.mode-toggle button{background:none;border:none;color:#64748b;font-size:11.5px;padding:5px 13px;border-radius:4px;cursor:pointer;text-transform:none;letter-spacing:0}
+.mode-toggle button.active{background:var(--accent);color:#0f1117;font-weight:700}
+.qbtn{background:#0f1117;border:1px solid var(--border);color:#94a3b8;font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;text-transform:uppercase;letter-spacing:.03em}
+.qbtn:hover{border-color:var(--accent);color:var(--accent)}
+.filter-item select,.filter-item input,.filter-item .ms-btn{width:100%;background:#0f1117;border:1px solid var(--border);color:#e2e8f0;padding:9px 12px;border-radius:8px;font-size:13px;cursor:pointer}
+.filter-item select:focus,.filter-item input:focus{outline:1px solid var(--accent)}
+.range-row{display:flex;gap:6px}
+.range-row select,.range-row input{flex:1;min-width:0}
+.rng-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.rng-cap{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#475569;font-weight:600}
+.ms-wrap{position:relative}
+.ms-btn{display:flex;align-items:center;justify-content:space-between;text-align:left}
+.ms-btn:hover{border-color:var(--accent)}
+.ms-dropdown{display:none;position:absolute;top:44px;left:0;right:0;z-index:50;background:#1a1d27;border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 8px 28px rgba(0,0,0,.5);max-height:300px;overflow-y:auto}
+.ms-dropdown.open{display:block}
+.ms-search{width:100%;background:#0f1117;border:1px solid var(--border);color:#e2e8f0;padding:7px 10px;border-radius:6px;font-size:12px;margin-bottom:8px}
+.ms-search:focus{outline:1px solid var(--accent)}
+.ms-option{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:13px}
+.ms-option:hover{background:rgba(23,246,164,.1)}
+.ms-option input{accent-color:var(--accent);width:auto;pointer-events:none}
+.ms-divider{height:1px;background:var(--border);margin:6px 0}
+.section-title{font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin:24px 0 12px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin:24px 0 12px;flex-wrap:wrap;gap:8px}
+.section-header .section-title{margin:0}
+.ctrl-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ctrl-row .lbl{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
+.kpi-card.accent{border-color:rgba(23,246,164,.4);background:linear-gradient(180deg,rgba(23,246,164,.06),var(--card))}
+.kpi-label{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.kpi-value{font-size:24px;font-weight:700;color:#fff;margin-bottom:4px}
+.kpi-sub{font-size:12px;color:#64748b;white-space:normal;word-break:break-word;line-height:1.35}
+.dd-wrap{position:relative;width:100%}
+.dd-btn{width:100%;background:#0f1117;border:1px solid var(--border);color:#e2e8f0;padding:9px 12px;border-radius:8px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;text-align:left}
+.dd-btn:hover{border-color:var(--accent)}
+.dd-panel{display:none;position:absolute;top:44px;left:0;right:0;z-index:60;background:#1a1d27;border:1px solid var(--border);border-radius:10px;padding:6px;box-shadow:0 8px 28px rgba(0,0,0,.5);max-height:300px;overflow-y:auto;min-width:150px}
+.dd-panel.open{display:block}
+.dd-opt,.dd-month{padding:7px 10px;border-radius:6px;cursor:pointer;font-size:13px;color:#cbd5e1}
+.dd-opt:hover,.dd-month:hover{background:rgba(23,246,164,.1)}
+.dd-opt.sel,.dd-month.sel{background:rgba(23,246,164,.18);color:var(--accent);font-weight:600}
+.dd-year{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.dd-year:hover{background:rgba(148,163,184,.08)}
+.dd-month{padding-left:22px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:12px}
+.chart-title{font-size:14px;font-weight:600;color:#cbd5e1;margin-bottom:16px}
+.sel{background:#0f1117;border:1px solid var(--border);color:#e2e8f0;padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer}
+.chip{padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;background:#0f1117;color:#94a3b8}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{border-bottom:1px solid var(--border)}
+th{text-align:left;padding:10px 12px;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:#94a3b8}
+td{padding:10px 12px;border-bottom:1px solid rgba(42,45,58,.5);color:#cbd5e1;white-space:nowrap}
+tbody tr:hover{background:rgba(23,246,164,.03)}
+.num{text-align:right}
+.cell-delta-sub{font-size:10px;line-height:1.15;margin-top:2px;white-space:nowrap}
+.tbl-scroll{overflow-x:auto}
+table.freeze-col th:first-child,table.freeze-col td:first-child{position:sticky;left:0;background:#1a1d27;z-index:2;box-shadow:6px 0 8px -6px rgba(0,0,0,.6)}
+table.freeze-col thead th:first-child,table.freeze-col tfoot td:first-child{z-index:4;background:#1a1d27}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:8px}
+tfoot td{border-top:2px solid var(--border);font-weight:700;color:#fff}
+.filter-summary{font-size:13px;color:#94a3b8;margin-bottom:4px;line-height:1.6;background:rgba(23,246,164,.05);border:1px solid rgba(23,246,164,.2);border-radius:10px;padding:12px 16px}
+.filter-summary strong{color:var(--accent)}
+.charts-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+.chg-up{color:var(--green);font-size:11px}.chg-dn{color:var(--red);font-size:11px}
+.empty-state{text-align:center;padding:80px 20px;color:#475569}
+.empty-state h2{font-size:20px;color:#64748b;margin-bottom:10px}
+.empty-state p{font-size:14px;line-height:1.7;margin-bottom:20px}
+.empty-paste-btn{background:var(--accent);border:none;color:#0f1117;padding:12px 28px;border-radius:10px;font-size:15px;cursor:pointer;font-weight:600}
+.neg{color:var(--red)}
+.note{font-size:12px;color:#64748b;line-height:1.6;margin-top:12px;padding:10px 14px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.22);border-radius:10px}
+.note strong{color:var(--yellow)}
+@media(max-width:768px){.charts-2{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+/* ===== LTV Model tab ===== */
+#view-ltv .ltv-wrap{max-width:1120px;margin:0 auto}
+#view-ltv .ltv-verdict{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:12px;padding:20px 22px;margin-bottom:20px}
+#view-ltv .ltv-vlabel{font-family:monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#64748b;margin-bottom:10px}
+#view-ltv .ltv-corridor{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+#view-ltv .ltv-val{font-family:monospace;font-size:clamp(28px,5vw,42px);font-weight:700;line-height:1;color:#fff}
+#view-ltv .ltv-after{color:#64748b;font-size:15px;font-family:monospace}
+#view-ltv .ltv-note{margin-top:12px;font-size:13px;color:#94a3b8;max-width:74ch;line-height:1.5}
+#view-ltv .ltv-grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
+@media(max-width:900px){#view-ltv .ltv-grid{grid-template-columns:1fr}}
+#view-ltv .ltv-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px}
+#view-ltv .ltv-panel h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:16px}
+#view-ltv .ltv-ctrl{margin-bottom:18px}
+#view-ltv .ltv-ctrl-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;gap:8px}
+#view-ltv .ltv-ctrl-name{font-size:13px;font-weight:500;color:#e2e8f0}
+#view-ltv .ltv-ctrl-val{font-family:monospace;font-size:14px;font-weight:600;color:var(--accent)}
+#view-ltv .ltv-hint{font-size:11.5px;color:#64748b;margin-top:6px;line-height:1.45}
+#view-ltv input[type=range]{width:100%;-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer;height:20px}
+#view-ltv input[type=range]::-webkit-slider-runnable-track{height:3px;background:#0f1117;border-radius:2px}
+#view-ltv input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--accent);margin-top:-6px;border:2px solid #0f1117}
+#view-ltv input[type=range]::-moz-range-track{height:3px;background:#0f1117;border-radius:2px}
+#view-ltv input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--accent);border:2px solid #0f1117}
+#view-ltv input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+#view-ltv .ltv-chart-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+#view-ltv .ltv-legend{display:flex;gap:14px;font-family:monospace;font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:.08em}
+#view-ltv .ltv-legend i{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:1px;vertical-align:-1px}
+#view-ltv svg#ltvChart{width:100%;height:auto;display:block}
+#view-ltv .ltv-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;margin-top:20px;overflow:hidden}
+#view-ltv .ltv-stat{background:var(--card);padding:14px 16px}
+#view-ltv .ltv-stat-k{font-family:monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#64748b}
+#view-ltv .ltv-stat-v{font-family:monospace;font-size:20px;font-weight:600;margin-top:5px;line-height:1.1;color:#fff}
+#view-ltv .ltv-stat-n{font-size:11.5px;color:#64748b;margin-top:3px}
+#view-ltv .ltv-tablewrap{margin-top:22px;overflow-x:auto}
+#view-ltv table.ltv-table{width:100%;border-collapse:collapse;font-family:monospace;font-size:12.5px;min-width:560px}
+#view-ltv table.ltv-table th{text-align:right;padding:9px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#64748b;border-bottom:1px solid var(--border);font-weight:500;cursor:default}
+#view-ltv table.ltv-table th:first-child,#view-ltv table.ltv-table td:first-child{text-align:left}
+#view-ltv table.ltv-table td{padding:9px 12px;border-bottom:1px solid rgba(42,45,58,.5);text-align:right;color:#cbd5e1;white-space:nowrap}
+#view-ltv table.ltv-table tbody tr:hover{background:var(--surface2,#20242f)}
+#view-ltv .ltv-caption{font-size:12px;color:#64748b;margin-top:10px;line-height:1.5}
+#view-ltv .ltv-neg{color:var(--red)} #view-ltv .ltv-pos{color:var(--accent)}
+#view-ltv .ltv-notes{margin-top:26px;border-top:1px solid var(--border);padding-top:20px}
+#view-ltv .ltv-notes h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:14px}
+#view-ltv .ltv-noterow{display:grid;grid-template-columns:24px 1fr;gap:12px;margin-bottom:12px;font-size:13px;color:#94a3b8;line-height:1.55}
+#view-ltv .ltv-noterow b{color:#e2e8f0;font-weight:600}
+#view-ltv .ltv-m{font-family:monospace;font-size:11px;color:var(--accent);padding-top:2px}
+</style>
+</head>
+<body>
+<div id="authGate" style="position:fixed;inset:0;z-index:99999;background:#0f1117;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;font-family:Inter,system-ui,sans-serif">
+  <div id="authLogo" style="margin-bottom:6px"></div>
+
+  <div id="authStepPhone" style="display:flex;flex-direction:column;align-items:center;gap:14px">
+    <div style="color:#94a3b8;font-size:13px">Enter your phone number to sign in</div>
+    <input id="authPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 123-4567" style="background:#1a1d27;border:1px solid #2a2d3a;color:#e2e8f0;padding:11px 14px;border-radius:8px;font-size:14px;width:250px;outline:none">
+    <button id="authSendBtn" style="background:#17F6A4;color:#0f1117;border:none;padding:11px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;width:250px">Send code</button>
+  </div>
+
+  <div id="authStepCode" style="display:none;flex-direction:column;align-items:center;gap:14px">
+    <div style="color:#94a3b8;font-size:13px">Enter the code sent to <span id="authSentTo" style="color:#e2e8f0"></span></div>
+    <input id="authCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" style="background:#1a1d27;border:1px solid #2a2d3a;color:#e2e8f0;padding:11px 14px;border-radius:8px;font-size:18px;width:250px;outline:none;text-align:center;letter-spacing:.35em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">
+    <button id="authVerifyBtn" style="background:#17F6A4;color:#0f1117;border:none;padding:11px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;width:250px">Sign in</button>
+    <div style="display:flex;gap:18px">
+      <button id="authResendBtn" style="background:none;border:none;color:#64748b;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Resend code</button>
+      <button id="authBackBtn" style="background:none;border:none;color:#64748b;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Use another number</button>
+    </div>
+  </div>
+
+  <div id="authErr" style="color:#ef4444;font-size:12px;min-height:14px;text-align:center;max-width:320px;line-height:1.5"></div>
+</div>
+<script>
+(function(){
+  // Base URL of the st-bi auth worker. The Infobip API key lives there,
+  // never in this file. Deployed worker URL, no trailing slash.
+  var AUTH_API='https://st-bi-auth.brandon-3e4.workers.dev';
+
+  var TOKEN_KEY='bi_session';
+  var phoneSent=null, busy=false;
+
+  function $(id){ return document.getElementById(id); }
+  function err(msg){ var e=$('authErr'); if(e) e.textContent=msg||''; }
+
+  function setBusy(on,btn,label){
+    busy=on;
+    if(btn){ btn.disabled=on; btn.style.opacity=on?'.6':'1'; btn.style.cursor=on?'default':'pointer'; btn.textContent=on?label:btn.dataset.label; }
+  }
+
+  function getToken(){ try{ return localStorage.getItem(TOKEN_KEY); }catch(e){ return null; } }
+  function setToken(t){ try{ t?localStorage.setItem(TOKEN_KEY,t):localStorage.removeItem(TOKEN_KEY); }catch(e){} }
+  function unlock(){ var g=$('authGate'); if(g) g.style.display='none'; }
+
+  // Display formatting only — the worker does the real normalization.
+  function fmtUS(v){
+    var d=v.replace(/\D/g,'').slice(0,10);
+    if(d.length<=3) return d;
+    if(d.length<=6) return '('+d.slice(0,3)+') '+d.slice(3);
+    return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6);
+  }
+
+  async function post(path,body){
+    var res=await fetch(AUTH_API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    var data=null; try{ data=await res.json(); }catch(e){}
+    return {ok:res.ok,data:data||{}};
+  }
+
+  async function sendCode(resending){
+    if(busy) return;
+    var raw=resending?phoneSent:($('authPhone').value||'');
+    if(raw.replace(/\D/g,'').length<10){ err('Enter a full phone number.'); return; }
+    err('');
+    var btn=resending?$('authResendBtn'):$('authSendBtn');
+    setBusy(true,btn,'Sending…');
+    try{
+      var r=await post('/auth/start',{phone:raw});
+      if(!r.ok){ err(r.data.error||'Could not send the code.'); return; }
+      phoneSent=raw;
+      $('authSentTo').textContent=fmtUS(raw)||raw;
+      $('authStepPhone').style.display='none';
+      $('authStepCode').style.display='flex';
+      var c=$('authCode'); if(c){ c.value=''; c.focus(); }
+    }catch(e){
+      err('Network error. Check your connection and try again.');
+    }finally{
+      setBusy(false,btn);
+    }
+  }
+
+  async function verifyCode(){
+    if(busy) return;
+    var code=($('authCode').value||'').replace(/\D/g,'');
+    if(code.length<4){ err('Enter the code from the text.'); return; }
+    err('');
+    var btn=$('authVerifyBtn');
+    setBusy(true,btn,'Checking…');
+    try{
+      var r=await post('/auth/verify',{phone:phoneSent,code:code});
+      if(!r.ok||!r.data.token){
+        err(r.data.error||'That code did not work.');
+        var c=$('authCode'); if(c){ c.value=''; c.focus(); }
+        return;
+      }
+      setToken(r.data.token);
+      unlock();
+    }catch(e){
+      err('Network error. Check your connection and try again.');
+    }finally{
+      setBusy(false,btn);
+    }
+  }
+
+  function backToPhone(){
+    phoneSent=null; err('');
+    $('authStepCode').style.display='none';
+    $('authStepPhone').style.display='flex';
+    var p=$('authPhone'); if(p) p.focus();
+  }
+
+  // Validate any stored session before showing the form, so a signed-in
+  // teammate never sees the login flash on reload.
+  async function boot(){
+    var token=getToken();
+    if(token){
+      try{
+        var res=await fetch(AUTH_API+'/auth/session',{headers:{'Authorization':'Bearer '+token}});
+        if(res.ok){ unlock(); return; }
+      }catch(e){}
+      setToken(null);
+    }
+    var p=$('authPhone'); if(p) p.focus();
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    var src=document.querySelector('header .logo svg'), box=$('authLogo');
+    if(src&&box){ var c=src.cloneNode(true); c.setAttribute('height','48'); c.removeAttribute('width'); c.style.display='block'; box.appendChild(c); }
+
+    ['authSendBtn','authVerifyBtn','authResendBtn'].forEach(function(id){ var b=$(id); if(b) b.dataset.label=b.textContent; });
+
+    $('authSendBtn').addEventListener('click',function(){ sendCode(false); });
+    $('authVerifyBtn').addEventListener('click',verifyCode);
+    $('authResendBtn').addEventListener('click',function(){ sendCode(true); });
+    $('authBackBtn').addEventListener('click',backToPhone);
+
+    var ph=$('authPhone');
+    ph.addEventListener('input',function(){ if(ph.value.trim().charAt(0)!=='+') ph.value=fmtUS(ph.value); });
+    ph.addEventListener('keydown',function(e){ if(e.key==='Enter') sendCode(false); });
+
+    var cd=$('authCode');
+    cd.addEventListener('input',function(){
+      cd.value=cd.value.replace(/\D/g,'').slice(0,6);
+      if(cd.value.length===6) verifyCode();
+    });
+    cd.addEventListener('keydown',function(e){ if(e.key==='Enter') verifyCode(); });
+
+    boot();
+  });
+})();
+</script>
+<header>
+  <div class="logo">
+    <svg height="30" viewBox="0 0 2146 390" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
+      <path d="M427.81 261.759C427.81 332.424 370.511 389.685 299.894 389.685H6.07336L112.46 293.677L112.586 293.552L164.942 246.302H251.224C286.575 246.344 315.224 217.692 315.224 182.339V96.0913L390.365 171.28C414.365 195.282 427.81 227.787 427.81 261.759Z" fill="#17F6A4"/>
+      <path d="M0 127.926C0 57.261 57.2563 0 127.916 0H421.736L315.349 96.0075L315.224 96.1332L262.868 143.383H176.586C141.235 143.341 112.586 171.992 112.586 207.346V293.594L37.4448 218.404C13.445 194.403 0 161.897 0 127.926Z" fill="#17F6A4"/>
+      <path d="M174.449 207.723C181.528 204.791 184.921 196.665 181.989 189.544C179.057 182.464 170.931 179.072 163.811 182.004C156.732 184.936 153.34 193.062 156.272 200.183C159.203 207.262 167.329 210.655 174.449 207.723Z" fill="white"/>
+      <path d="M227.182 199.01C229.486 191.68 225.381 183.889 218.051 181.585C210.721 179.281 202.931 183.386 200.627 190.716C198.324 198.047 202.428 205.838 209.758 208.142C217.088 210.446 224.878 206.341 227.182 199.01Z" fill="white"/>
+      <path d="M268.522 204.665C273.967 199.22 273.967 190.423 268.522 185.02C263.077 179.616 254.282 179.574 248.878 185.02C243.433 190.465 243.433 199.262 248.878 204.665C254.323 210.111 263.119 210.111 268.522 204.665Z" fill="white"/>
+      <path d="M2011.09 276.922H1958.82V112.804H2011.09V177.647L2078.44 112.804H2143.4L2063.74 187.365L2146 276.922H2077.94L2011.13 203.492V276.922H2011.09Z" fill="white"/>
+      <path d="M1839.61 109.705H1847.91C1860.05 109.705 1871.07 110.752 1881.04 112.804C1891.09 114.731 1899.51 117.286 1906.25 120.512C1913.12 123.611 1919.07 127.507 1924.09 132.198C1929.25 136.764 1933.31 141.372 1936.24 146.105C1939.17 150.797 1941.52 155.949 1943.24 161.562C1945.08 167.133 1946.25 172.244 1946.71 176.767C1947.34 181.333 1947.63 186.108 1947.63 191.093V197.711C1947.63 202.696 1947.34 207.471 1946.71 212.037C1946.21 216.603 1945.04 221.755 1943.24 227.494C1941.52 233.065 1939.17 238.301 1936.24 243.16C1933.44 247.852 1929.41 252.585 1924.26 257.276C1919.11 261.968 1913.16 265.947 1906.42 269.173C1899.68 272.398 1891.26 274.995 1881.21 276.88C1871.28 278.932 1860.18 279.98 1847.91 279.98H1839.61C1827.34 279.98 1816.2 278.932 1806.15 276.88C1796.22 274.953 1787.8 272.398 1780.93 269.173C1774.19 265.947 1768.24 261.968 1763.09 257.276C1757.94 252.585 1753.88 247.852 1750.94 243.16C1748.14 238.301 1745.79 233.107 1743.95 227.494C1742.23 221.755 1741.06 216.603 1740.47 212.037C1739.97 207.471 1739.72 202.696 1739.72 197.711V191.093C1739.72 186.108 1739.97 181.333 1740.47 176.767C1741.1 172.202 1742.23 167.133 1743.95 161.562C1745.79 155.991 1748.14 150.839 1750.94 146.105C1753.88 141.414 1757.94 136.764 1763.09 132.198C1768.24 127.507 1774.19 123.611 1780.93 120.512C1787.8 117.286 1796.22 114.689 1806.15 112.804C1816.2 110.752 1827.38 109.705 1839.61 109.705ZM1893.56 195.743V192.643C1893.56 187.784 1892.81 183.302 1891.34 179.197C1889.88 174.924 1887.36 170.819 1883.8 166.84C1880.37 162.861 1875.22 159.719 1868.35 157.373C1861.48 155.028 1853.27 153.855 1843.68 153.855C1834.08 153.855 1825.54 155.028 1818.67 157.373C1811.8 159.719 1806.65 162.902 1803.22 166.84C1799.78 170.777 1797.35 174.924 1795.84 179.197C1794.5 183.302 1793.83 187.784 1793.83 192.643V195.282C1793.83 200.141 1794.59 204.749 1796.05 209.189C1797.52 213.461 1799.99 217.734 1803.43 221.965C1806.86 226.07 1812.01 229.379 1818.88 231.892C1825.88 234.364 1834.17 235.62 1843.72 235.62C1853.27 235.62 1861.52 234.447 1868.39 232.102C1875.38 229.588 1880.62 226.279 1884.01 222.174C1887.45 218.069 1889.92 213.88 1891.38 209.608C1892.85 205.209 1893.6 200.56 1893.6 195.701L1893.56 195.743Z" fill="white"/>
+      <path d="M1626.17 276.922V157.625H1567.11V112.846H1737.5V157.625H1678.44V276.922H1626.17Z" fill="white"/>
+      <path d="M1434.25 276.922H1381.98V112.804H1434.25V177.647L1501.6 112.804H1566.57L1486.9 187.365L1569.16 276.922H1501.1L1434.3 203.492V276.922H1434.25Z" fill="white"/>
+      <path d="M1276.01 279.98H1268.85C1252.77 279.98 1238.7 278.053 1226.55 274.241C1214.53 270.429 1205.15 265.696 1198.4 260.125C1191.66 254.386 1186.21 247.6 1182.03 239.851C1177.84 232.06 1175.16 224.855 1173.94 218.237C1172.73 211.618 1172.1 204.707 1172.1 197.502V191.093C1172.1 183.763 1172.64 176.809 1173.77 170.359C1174.99 163.908 1177.63 156.829 1181.69 149.205C1185.75 141.414 1191.07 134.796 1197.69 129.35C1204.43 123.779 1213.9 119.129 1226.05 115.443C1238.32 111.631 1252.6 109.705 1268.94 109.705H1276.1C1287.49 109.705 1297.92 110.584 1307.39 112.344C1316.94 114.103 1324.94 116.365 1331.3 119.171C1337.79 121.978 1343.49 125.329 1348.43 129.308C1353.46 133.12 1357.4 137.016 1360.2 140.995C1363.01 144.974 1365.31 149.247 1367.03 153.813C1368.87 158.211 1370.05 162.19 1370.51 165.709C1371.13 169.228 1371.43 172.704 1371.43 176.097V178.946H1317.15C1312.96 162.19 1297.96 153.813 1272.08 153.813C1241.54 153.813 1226.26 166.589 1226.26 192.182V194.821C1226.26 199.68 1226.93 204.288 1228.27 208.728C1229.73 213.126 1232.08 217.483 1235.26 221.755C1238.57 226.028 1243.34 229.421 1249.63 231.892C1255.99 234.364 1263.53 235.62 1272.24 235.62C1279.87 235.62 1286.53 234.824 1292.31 233.191C1298.09 231.431 1302.44 229.505 1305.38 227.452C1308.31 225.399 1310.78 222.802 1312.75 219.745C1314.72 216.645 1315.89 214.467 1316.22 213.126C1316.6 211.786 1316.98 210.32 1317.31 208.728H1371.43V212.247C1371.43 217.231 1370.8 222.384 1369.58 227.703C1368.37 232.856 1365.65 238.72 1361.5 245.338C1357.31 251.789 1351.95 257.528 1345.29 262.554C1338.8 267.413 1329.54 271.518 1317.52 274.911C1305.63 278.304 1291.8 279.98 1276.14 279.98H1276.01Z" fill="white"/>
+      <path d="M1100.64 209.398L1077.65 152.933L1055.2 209.398H1100.64ZM1128.04 276.922L1117.36 250.449H1039.16L1028.69 276.922H975.702L1043.43 112.846H1113.71L1185.29 276.922H1128.08H1128.04Z" fill="white"/>
+      <path d="M746.384 276.922V112.804H818.132L860.1 205L902.781 112.804H971.597V276.88H919.912V174.547L871.87 276.88H845.189L797.357 174.547V276.88H746.384V276.922Z" fill="white"/>
+      <path d="M651.598 279.98H634.845C579.138 279.98 551.327 260.585 551.327 221.755V219.535H608.75C609.714 234.992 621.148 242.699 642.97 242.699H644.646C651.64 242.699 657.462 242.322 662.111 241.61C666.761 240.73 670.195 239.558 672.415 238.091C674.635 236.458 676.101 234.866 676.813 233.232C677.693 231.473 678.111 229.504 678.111 227.284V227.075C678.111 223.975 677.441 221.546 676.101 219.786C674.886 217.859 671.787 216.268 666.886 214.927C662.111 213.461 655.117 212.582 645.902 212.288L620.52 211.409C575.745 209.943 553.379 193.481 553.379 162.023V160.054C553.379 154.315 554.049 149.163 555.389 144.639C556.73 139.948 559.201 135.382 562.761 130.942C566.321 126.543 570.971 122.857 576.751 119.925C582.531 116.993 590.07 114.647 599.368 112.888C608.834 110.961 619.724 110.04 632.122 110.04H648.499C703.954 110.04 731.682 127.297 731.682 161.855V163.614H674.844C673.755 152.011 662.698 146.189 641.714 146.189H639.871C631.284 146.189 624.667 146.859 620.017 148.158C615.368 149.331 612.478 150.713 611.389 152.347C610.3 153.813 609.714 155.781 609.714 158.295V158.504C609.714 161.017 610.342 163.07 611.557 164.662C612.897 166.253 615.871 167.761 620.394 169.06C624.918 170.233 631.326 170.903 639.536 171.029L664.206 171.699C690.09 172.578 708.603 176.935 719.787 184.726C730.97 192.392 736.54 204.497 736.54 221.127V224.226C736.54 230.258 735.912 235.788 734.698 240.772C733.483 245.631 731.012 250.616 727.326 255.768C723.64 260.753 718.739 265.025 712.624 268.544C706.593 271.937 698.384 274.702 687.954 276.922C677.651 278.974 665.588 280.021 651.724 280.021L651.598 279.98Z" fill="white"/>
+    </svg>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span class="sync-status" id="syncStatus"></span>
+    <button class="paste-btn" onclick="syncSheets()">&#8635; Sync</button>
+  </div>
+</header>
+
+<nav class="nav" id="nav">
+  <button data-v="gaming" class="active" onclick="switchView('gaming')">Gaming Activity</button>
+  <button data-v="paid" onclick="switchView('paid')">Paid Marketing</button>
+  <button data-v="active" onclick="switchView('active')">Retention</button>
+  <button data-v="ltv" onclick="switchView('ltv')">LTV Model</button>
+  <button data-v="glossary" onclick="switchView('glossary')">Glossary</button>
+</nav>
+
+<div class="modal-overlay" id="modal" style="display:none">
+  <div class="modal">
+    <h2>Upload a data source</h2>
+    <p>Pick which tab you're pasting, then copy it from Google Sheets (header row through the last row &mdash; banner rows above the header are fine, the parser finds the header) and paste below. Each tab saves to its own slot.</p>
+    <select id="srcPick" onchange="srcHint()" style="width:100%;background:#0f1117;border:1px solid var(--border);color:#e2e8f0;padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;cursor:pointer">
+      <option value="users">Users</option>
+      <option value="cohort">Cohort Activity</option>
+      <option value="ga4">Active Users (GA4)</option>
+      <option value="appsflyer">AppsFlyer Data</option>
+      <option value="meta">Meta (Facebook Ads)</option>
+      <option value="apple">Apple Search Ads</option>
+      <option value="googleads">Google Ads</option>
+      <option value="affiliate">Affiliate</option>
+      <option value="influencer">Influencer</option>
+      <option value="affcpa">Affiliate CPA</option>
+    </select>
+    <p id="srcHint" style="margin-bottom:10px"></p>
+    <textarea id="pasteArea" placeholder="Paste here..."></textarea>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-load" onclick="loadFromPaste()">Load source</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="sheetsModal" style="display:none">
+  <div class="modal" style="max-width:760px">
+    <h2>Connect Google Sheets</h2>
+    <p>Paste the <strong>Publish-to-web CSV link</strong> for each tab (see the steps I gave you). The dashboard fetches these on load and when you hit Sync. Leave a box blank to skip it. Your AppsFlyer tab already carries Meta, Apple Search &amp; Influencer as media sources &mdash; connecting just that one covers all your paid channels.</p>
+    <div id="sheetInputs" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:10px"></div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#cbd5e1;margin-top:14px;cursor:pointer"><input type="checkbox" id="afCostChk" style="accent-color:var(--accent);width:auto"> Treat AppsFlyer cost as paid spend (grouped by media source) &mdash; turn this on when Meta/Apple/Influencer spend lives inside the AppsFlyer export</label>
+    <p id="sheetSyncStatus" style="margin-top:12px;color:var(--accent);min-height:16px"></p>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeSheets()">Cancel</button>
+      <button class="modal-cancel" onclick="syncSheets()">Sync now</button>
+      <button class="modal-load" onclick="saveSheets()">Save &amp; sync</button>
+    </div>
+  </div>
+</div>
+
+<main id="mainContent">
+  <div class="empty-state">
+    <h2>Smacktok BI</h2>
+    <p>Loading your live data&hellip;<br>If nothing appears, hit <strong>Sync</strong> in the top-right.</p>
+  </div>
+</main>
+
+<script>
+var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var METRIC_DEFS=[
+  {k:'registrations',l:'Registrations',type:'count'},
+  {k:'ftds',l:'FTDs',type:'count'},
+  {k:'ftdRate',l:'FTD Rate',type:'pct'},
+  {k:'handle',l:'Handle',type:'money'},
+  {k:'ggr',l:'GGR',type:'money'},
+  {k:'ngr',l:'NGR',type:'money'},
+  {k:'ggrMargin',l:'GGR %',type:'pct'},
+  {k:'ngrMargin',l:'NGR %',type:'pct'},
+  {k:'bonus',l:'Bonus Awarded',type:'money'},
+  {k:'entries',l:'Entries',type:'count'},
+  {k:'avgFtd',l:'Avg FTD Amount',type:'money'},
+  {k:'handlePerUser',l:'Handle / User',type:'money'},
+  {k:'ngrPerUser',l:'NGR / User',type:'money'},
+  {k:'bonusPerUser',l:'Bonus / User',type:'money'},
+  {k:'entriesPerUser',l:'Entries / User',type:'dec'}
+];
+var CHART_METRICS=[
+  {k:'handle',color:'#17F6A4',money:true},{k:'ggr',color:'#3b82f6',money:true},{k:'ngr',color:'#f59e0b',money:true},{k:'spend',color:'#ff0050',money:true},
+  {k:'registrations',color:'#8b5cf6',money:false},{k:'ftds',color:'#ec4899',money:false},{k:'installs',color:'#22d3ee',money:false},{k:'entries',color:'#60a5fa',money:false},{k:'bonus',color:'#14b8a6',money:true}
+];
+var DONUT_METRICS=[['handle','Handle'],['ggr','GGR'],['ngr','NGR'],['ftds','FTDs'],['entries','Entries']];
+var GAMING_KEYS=['handle','ggr','ngr','ggrMargin','ngrMargin','bonus','entries','handlePerUser','ngrPerUser','bonusPerUser'];
+var PLAYER_KEYS=['registrations','ftds','ftdRate','avgFtd','entriesPerUser'];
+function kcard(label,val,sub,accent){return '<div class="kpi-card'+(accent?' accent':'')+'"><div class="kpi-label">'+label+'</div><div class="kpi-value">'+val+'</div><div class="kpi-sub">'+(sub||'')+'</div></div>';}
+function mLabel(k){if(k==='installs')return 'Installs';if(k==='spend')return 'Spend';var m=METRIC_DEFS.find(function(x){return x.k===k;});return m?m.l:k;}
+function mMoney(k){var m=CHART_METRICS.find(function(x){return x.k===k;});return m?m.money:false;}
+function dimLabel(d){return {state:'State',source:'Source',sport:'Sport',promo:'Promo'}[d]||d;}
+
+var userRows=[], filtered=[];
+var allStates=[], allPromos=[];
+var selectedStates=[], selectedPromos=[], selectedPromosPaid=[];
+var allSources=[], selectedSources=[], selectedSourcesPaid=[];
+var allSports=[], selectedSports=[];
+var selectedMetrics={}; METRIC_DEFS.forEach(function(m){selectedMetrics[m.k]=true;});
+var sortKey='handle', sortDir=-1;
+var modes={};
+var trendPeriod='month';
+var breakdownBy='month';
+var breakdownDim='reg';
+var trendMetrics={handle:true,ggr:true,ngr:true,spend:true};
+var trendMode='metrics';
+var srcMetric='handle', srcDim='sport';
+var paidCmp={installs:false,registrations:false,ftds:true};
+var paidDonutMetric='spend';
+var paidInstMetric='installs';
+var nvrPeriod='month';
+var ltvModel=null;
+var currentView='gaming';
+var trendChart=null, srcChart=null, funnelChart=null, acqSpendChart=null, acqTrendChart=null, acqInstallChart=null, engChart=null, dowChart=null, entryDistChart=null;
+var minDate='2023-01-01', maxDate='2026-12-31';
+
+function num(v){var x=parseFloat((v||'').toString().replace(/[^0-9.\-]/g,''));return isNaN(x)?0:x;}
+// Normalize grouping labels (sport/promo/state) so space-padded or zero-width
+// variants like " CFBWAVE" and "CFBWAVE" collapse into a single value.
+function normLabel(v){return (v==null?'':v.toString()).replace(/[\s\u00a0\u200b\ufeff]+/g,' ').trim();}
+function fmt(v){if(v===null||v===undefined||isNaN(v))return '--';return Math.round(v).toLocaleString('en-US');}
+function fmtM(v){if(v===null||v===undefined||isNaN(v))return '--';return (v<0?'-$':'$')+Math.abs(Math.round(v)).toLocaleString('en-US');}
+function money2(v){if(v===null||v===undefined||isNaN(v))return '--';return (v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function pad(x){return x<10?'0'+x:''+x;}
+function lastDay(y,m){return new Date(y,m+1,0).getDate();}
+function isDate(s){return /^\d{4}-\d{2}-\d{2}$/.test((s||'').trim());}
+function inR(d,r){ if(!d) return false; if(r.from&&d<r.from) return false; if(r.to&&d>r.to) return false; return true; }
+function fmtMetric(k,val){
+  if(val===null||val===undefined||isNaN(val)) return '--';
+  var m=METRIC_DEFS.find(function(x){return x.k===k;});
+  if(!m) return fmt(val);
+  var out;
+  if(m.type==='money') out=fmtM(val);
+  else if(m.type==='pct') out=(val*100).toFixed(1)+'%';
+  else if(m.type==='dec') out=val.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+  else out=fmt(val);
+  return (val<0?'<span class="neg">'+out+'</span>':out);
+}
+
+/* ============ SOURCE REGISTRY & PARSERS ============ */
+var DATA={cohort:[],ga4:[],appsflyer:[],meta:[],apple:[],googleads:[],affiliate:[],influencer:[],affcpa:[]};
+var SOURCES={
+  users:{name:'Users',key:'smacktok_users_v1',hint:'One row per user, lifetime totals. Drives the gaming cohort view.'},
+  cohort:{name:'Cohort Activity',key:'smacktok_cohort_v1',headerRe:/activity date/i,hint:'One row per user/day/sport. Carries the Activity Date used for period revenue.'},
+  ga4:{name:'Active Users (GA4)',key:'smacktok_ga4_v1',headerRe:/\bdau\b/i,hint:'DAU / WAU / MAU by day.'},
+  appsflyer:{name:'AppsFlyer Data',key:'smacktok_af_v1',headerRe:/platform/i,hint:'Installs / spend by platform, media source, campaign.'},
+  meta:{name:'Meta (Facebook Ads)',key:'smacktok_meta_v1',headerRe:/impressions/i,hint:'Impressions, cost, clicks by day.'},
+  apple:{name:'Apple Search Ads',key:'smacktok_apple_v1',headerRe:/date/i,hint:'Auto-detects date / spend / impressions / clicks / installs.'},
+  googleads:{name:'Google Ads',key:'smacktok_googleads_v1',headerRe:/impressions/i,hint:'Google Ads spend by day (date / cost / impressions / clicks / installs). Aligns to AppsFlyer’s Google media source.'},
+  affiliate:{name:'Affiliate',key:'smacktok_aff_v1',headerRe:/date/i,hint:'Affiliate spend by day (date + spend/cost auto-detected).'},
+  influencer:{name:'Influencer',key:'smacktok_inf_v1',headerRe:/date/i,hint:'Influencer spend by day (date + spend/cost auto-detected).'},
+  affcpa:{name:'Affiliate CPA',key:'smacktok_affcpa_v1',headerRe:/affiliate type/i,hint:'One row per affiliate code: Affiliate Type (Affiliate / Web Content / Influencer), Affiliate name, Code, CPA.'}
+};
+function findHeaderLine(lines,headerRe){
+  // Prefer a line where the keyword is a short standalone column cell (a real
+  // header), not a word buried in a descriptive banner sentence (which some
+  // published sheets put in row 1 and which would otherwise be mistaken for the header).
+  for(var i=0;i<lines.length;i++){
+    var ln=lines[i]; if(!headerRe.test(ln)) continue;
+    var delim=ln.indexOf('\t')>-1?'\t':',';
+    var cells=ln.split(delim);
+    for(var j=0;j<cells.length;j++){
+      var c=cells[j].replace(/^"+|"+$/g,'').trim();
+      if(headerRe.test(c) && c.length<=40 && c.indexOf('.')<0) return i;
+    }
+  }
+  // fallback: first line that matches anywhere
+  for(var k=0;k<lines.length;k++){ if(headerRe.test(lines[k])) return k; }
+  return -1;
+}
+function parseTable(raw,headerRe){
+  var lines=raw.split(/\r?\n/);
+  var hi=findHeaderLine(lines,headerRe);
+  if(hi<0) return null;
+  var body=lines.slice(hi).join('\n');
+  var delim=body.indexOf('\t')>-1?'\t':',';
+  var parsed=Papa.parse(body,{header:true,skipEmptyLines:true,dynamicTyping:false,delimiter:delim});
+  var rows=parsed.data,keyMap={};
+  if(rows.length){Object.keys(rows[0]).forEach(function(k){keyMap[k.trim().toLowerCase()]=k;});}
+  function col(row,name){var k=keyMap[name.toLowerCase()];return k!==undefined?(row[k]||'').toString().trim():'';}
+  function findKey(re){var hit=null;Object.keys(keyMap).forEach(function(lk){if(!hit&&re.test(lk))hit=keyMap[lk];});return hit;}
+  return {rows:rows,col:col,findKey:findKey};
+}
+function parseCohort(raw){
+  var t=parseTable(raw,/activity date/i); if(!t) return null;
+  var out=[];
+  t.rows.forEach(function(r){
+    var a=t.col(r,'Activity Date (PT)')||t.col(r,'Activity Date'); if(!isDate(a)) return;
+    var ftd=t.col(r,'FTD Date (PT)'),reg=t.col(r,'Reg Date (PT)');
+    out.push({id:t.col(r,'User ID'),activityDate:a,ftdDate:isDate(ftd)?ftd:'',regDate:isDate(reg)?reg:'',
+      state:normLabel(t.col(r,'State'))||'(none)',sport:normLabel(t.col(r,'Sport'))||'(none)',promo:normLabel(t.col(r,'Promo Code'))||'(none)',
+      handle:num(t.col(r,'Handle')),ggr:num(t.col(r,'GGR')),ngr:num(t.col(r,'NGR')),entries:num(t.col(r,'Entries'))});
+  });
+  return out;
+}
+function parseGa4(raw){
+  var t=parseTable(raw,/\bdau\b/i); if(!t) return null;
+  var out=[];
+  t.rows.forEach(function(r){var d=t.col(r,'Date (PT)')||t.col(r,'Date'); if(!isDate(d)) return;
+    out.push({date:d,dau:num(t.col(r,'DAU')),wau:num(t.col(r,'WAU')),mau:num(t.col(r,'MAU'))});});
+  return out;
+}
+function parseAppsflyer(raw){
+  var t=parseTable(raw,/platform/i); if(!t) return null;
+  var dateK=t.findKey(/date/),instK=t.findKey(/install/),costK=t.findKey(/total cost|^cost$|spend/),
+      impK=t.findKey(/impression/),clkK=t.findKey(/click/),revK=t.findKey(/total revenue|revenue/),loyalK=t.findKey(/loyal/),
+      msK=t.findKey(/media source/),campK=t.findKey(/campaign/),
+      suK=t.findKey(/sign_up|sign up|signup/),fdK=t.findKey(/first_deposit|first deposit/);
+  var out=[];
+  t.rows.forEach(function(r){var d=dateK?(r[dateK]||'').toString().trim():''; if(!isDate(d)) return;
+    out.push({platform:t.col(r,'Platform')||'(all)',date:d,installs:instK?num(r[instK]):0,cost:costK?num(r[costK]):0,
+      impressions:impK?num(r[impK]):0,clicks:clkK?num(r[clkK]):0,revenue:revK?num(r[revK]):0,loyal:loyalK?num(r[loyalK]):0,
+      signups:suK?num(r[suK]):0,deposits:fdK?num(r[fdK]):0,
+      mediaSource:msK?((r[msK]||'').toString().trim()||'(none)'):'',campaign:campK?(r[campK]||'').toString().trim():''});});
+  return out;
+}
+function parseAdGeneric(id){
+  return function(raw){
+    var t=parseTable(raw,SOURCES[id].headerRe); if(!t) return null;
+    var dateK=t.findKey(/date/),costK=t.findKey(/cost|spend/),impK=t.findKey(/impression/),clkK=t.findKey(/click/),instK=t.findKey(/install|download/);
+    if(!dateK) return null;
+    var out=[];
+    t.rows.forEach(function(r){var d=(r[dateK]||'').toString().trim(); if(!isDate(d)) return;
+      out.push({date:d,cost:costK?num(r[costK]):0,impressions:impK?num(r[impK]):0,clicks:clkK?num(r[clkK]):0,installs:instK?num(r[instK]):0});});
+    return out;
+  };
+}
+function parseInfluencer(raw){
+  var t=parseTable(raw,/influencer/i); if(!t) return null;
+  var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var out=[];
+  t.rows.forEach(function(r){
+    var name=t.col(r,'Influencer'); if(!name) return;
+    months.forEach(function(mn,idx){
+      var amt=num(t.col(r,mn));
+      if(amt>0) out.push({date:SPEND_YEAR+'-'+pad(idx+1)+'-01',cost:amt,impressions:0,clicks:0,installs:0,signups:0,deposits:0,influencer:name});
+    });
+  });
+  return out;
+}
+function parseAffCpa(raw){
+  var t=parseTable(raw,/affiliate type/i); if(!t) return null;
+  var out=[];
+  t.rows.forEach(function(r){
+    var code=normLabel(t.col(r,'Code')); if(!code) return;
+    out.push({code:code,type:normLabel(t.col(r,'Affiliate Type'))||'Affiliate',name:normLabel(t.col(r,'Affiliate'))||'(unknown)',cpa:num(t.col(r,'CPA'))});
+  });
+  return out;
+}
+var PARSERS={cohort:parseCohort,ga4:parseGa4,appsflyer:parseAppsflyer,meta:parseAdGeneric('meta'),apple:parseAdGeneric('apple'),googleads:parseAdGeneric('googleads'),affiliate:parseAdGeneric('affiliate'),influencer:parseInfluencer,affcpa:parseAffCpa};
+
+/* ============================================================
+   GOOGLE SHEETS AUTO-CONNECT
+   Baked-in published-CSV links so the hosted site loads live
+   data for everyone with zero setup. Fill these once (or send
+   them to be filled). Publish each tab: File > Share > Publish
+   to web > pick the tab > CSV. Paste the resulting link here.
+   Your AppsFlyer tab carries Meta / Apple Search / Influencer
+   as media sources, so connecting just that one covers paid.
+   ============================================================ */
+var SHEET_URLS={
+  users:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQOWciU6ikkBIaXkpC-m7GTgCy7qGDGdJLTKvL7thnsgL3V74chtj9YfRi830nvdP-ZYoJEkunFAknc/pub?gid=1410094985&single=true&output=csv',
+  cohort:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQOWciU6ikkBIaXkpC-m7GTgCy7qGDGdJLTKvL7thnsgL3V74chtj9YfRi830nvdP-ZYoJEkunFAknc/pub?gid=1179984540&single=true&output=csv',
+  ga4:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQOWciU6ikkBIaXkpC-m7GTgCy7qGDGdJLTKvL7thnsgL3V74chtj9YfRi830nvdP-ZYoJEkunFAknc/pub?gid=448794222&single=true&output=csv',
+  appsflyer:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeBxuvg56kLaWcH7ck1qSM-h2S20VMea8AgV_SL5N9xhy4-iXSxctNvgZu061lmDyC-kC6ITw5qXw0/pub?output=csv',
+  meta:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeBxuvg56kLaWcH7ck1qSM-h2S20VMea8AgV_SL5N9xhy4-iXSxctNvgZu061lmDyC-kC6ITw5qXw0/pub?gid=688887992&single=true&output=csv',
+  apple:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeBxuvg56kLaWcH7ck1qSM-h2S20VMea8AgV_SL5N9xhy4-iXSxctNvgZu061lmDyC-kC6ITw5qXw0/pub?gid=339518112&single=true&output=csv',
+  googleads:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeBxuvg56kLaWcH7ck1qSM-h2S20VMea8AgV_SL5N9xhy4-iXSxctNvgZu061lmDyC-kC6ITw5qXw0/pub?gid=489313642&single=true&output=csv',
+  affiliate:'',
+  influencer:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeBxuvg56kLaWcH7ck1qSM-h2S20VMea8AgV_SL5N9xhy4-iXSxctNvgZu061lmDyC-kC6ITw5qXw0/pub?gid=652243482&single=true&output=csv',
+  affcpa:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeBxuvg56kLaWcH7ck1qSM-h2S20VMea8AgV_SL5N9xhy4-iXSxctNvgZu061lmDyC-kC6ITw5qXw0/pub?gid=1179119419&single=true&output=csv'
+};
+var SPEND_YEAR=2026; // year the Influencer monthly matrix belongs to
+// Simpler path for one document with many tabs: set the spreadsheet ID once and
+// name each tab. When SHEET_URLS[id] is blank, the dashboard builds a per-tab CSV
+// endpoint by sheet name from these two lines (needs the sheet shared "Anyone with
+// the link -> Viewer"). No per-tab publishing required.
+var SHEET_DOC_ID=''; // the <ID> from your normal https://docs.google.com/spreadsheets/d/<ID>/edit link
+var SHEET_TABS={ users:'', cohort:'', ga4:'', appsflyer:'', meta:'', apple:'', googleads:'', affiliate:'', influencer:'', affcpa:'' };
+var SHEET_DEFAULT_AFCOST=false; // true = derive paid spend from AppsFlyer cost by media source
+var SHEET_IDS=['users','cohort','ga4','appsflyer','meta','apple','googleads','affiliate','influencer','affcpa'];
+function cfgGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function cfgSet(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k);}catch(e){}}
+function sheetUrl(id){
+  var o=cfgGet('smacktok_sheet_'+id); if(o) return o;
+  if(SHEET_URLS[id]) return SHEET_URLS[id];
+  if(SHEET_DOC_ID&&SHEET_TABS[id]) return 'https://docs.google.com/spreadsheets/d/'+SHEET_DOC_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(SHEET_TABS[id]);
+  return '';
+}
+var afCostAsPaid=(function(){var o=cfgGet('smacktok_afcost');return o!==null?o==='1':SHEET_DEFAULT_AFCOST;})();
+function normalizeCsvUrl(u){
+  u=(u||'').trim(); if(!u) return '';
+  if(/output=csv|format=csv|out:csv|\/gviz\//i.test(u)) return u;
+  var m=u.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if(m){var g=u.match(/[#&?]gid=(\d+)/);return 'https://docs.google.com/spreadsheets/d/'+m[1]+'/export?format=csv&gid='+(g?g[1]:'0');}
+  return u;
+}
+function openSheets(){
+  var box=document.getElementById('sheetInputs');
+  box.innerHTML=SHEET_IDS.map(function(id){
+    return '<div><label style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px">'+SOURCES[id].name+'</label><input id="sheet_'+id+'" type="text" placeholder="https://docs.google.com/\u2026/pub?gid=\u2026&single=true&output=csv" style="width:100%;background:#0f1117;border:1px solid var(--border);color:#e2e8f0;padding:8px 10px;border-radius:8px;font-size:12px;font-family:monospace"></div>';
+  }).join('');
+  SHEET_IDS.forEach(function(id){document.getElementById('sheet_'+id).value=sheetUrl(id);});
+  document.getElementById('afCostChk').checked=afCostAsPaid;
+  document.getElementById('sheetSyncStatus').textContent='';
+  document.getElementById('sheetsModal').style.display='flex';
+}
+function closeSheets(){document.getElementById('sheetsModal').style.display='none';}
+function saveSheets(){
+  SHEET_IDS.forEach(function(id){var el=document.getElementById('sheet_'+id);cfgSet('smacktok_sheet_'+id,(el.value||'').trim());});
+  afCostAsPaid=document.getElementById('afCostChk').checked;cfgSet('smacktok_afcost',afCostAsPaid?'1':'0');
+  syncSheets();
+}
+async function syncSheets(){
+  var ids=SHEET_IDS.filter(function(id){return sheetUrl(id);});
+  var status=document.getElementById('sheetSyncStatus');
+  var hdr=document.getElementById('syncStatus');
+  if(!ids.length){ if(status)status.textContent='No sheets connected yet \u2014 paste a published-CSV link above.'; return; }
+  if(status)status.textContent='Syncing\u2026';
+  if(hdr)hdr.textContent='Syncing '+ids.length+' sheets\u2026';
+  console.log('[Smacktok BI] Sync starting for:',ids.join(', '));
+  var ok=0,fail=[];
+  for(var i=0;i<ids.length;i++){var id=ids[i];
+    var url=normalizeCsvUrl(sheetUrl(id));
+    try{
+      var res=await fetch(url,{redirect:'follow'});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      var txt=await res.text();
+      if(/^\s*<(!doctype|html)/i.test(txt)) throw new Error('not public / not published as CSV');
+      var n;
+      if(id==='users'){ parseUsers(txt); n=userRows.length; }
+      else { var rows=PARSERS[id](txt); if(!rows||!rows.length) throw new Error('0 rows parsed \u2014 check header row matches expected columns'); DATA[id]=rows; n=rows.length; }
+      console.log('[Smacktok BI] \u2713 '+SOURCES[id].name+': '+n+' rows');
+      ok++;
+    }catch(e){
+      var reason=e.message;
+      if(/Failed to fetch|NetworkError|Load failed/i.test(reason)) reason='blocked by CORS or offline (open the file over http/https, not file://)';
+      console.warn('[Smacktok BI] \u2717 '+SOURCES[id].name+' \u2014 '+reason+'  URL: '+url);
+      fail.push(SOURCES[id].name+': '+reason);
+    }
+  }
+  updateSync(); refreshAfterLoad();
+  var msg='Synced '+ok+'/'+ids.length+' \u00b7 '+new Date().toLocaleTimeString()+(fail.length?' \u00b7 '+fail.join(' \u00b7 '):'');
+  if(status)status.textContent=msg;
+  if(hdr&&fail.length)hdr.textContent='\u26a0 '+ok+'/'+ids.length+' loaded \u2014 '+fail.map(function(f){return f.split(':')[0];}).join(', ')+' failed (see console)';
+  console.log('[Smacktok BI] '+msg);
+}
+
+/* ============ MODAL / LOAD ============ */
+function openModal(){srcHint();document.getElementById('modal').style.display='flex';}
+function closeModal(){document.getElementById('modal').style.display='none';}
+function srcHint(){var id=document.getElementById('srcPick').value;document.getElementById('srcHint').textContent=(SOURCES[id]&&SOURCES[id].hint)||'';}
+function loadFromPaste(){
+  var id=document.getElementById('srcPick').value;
+  var raw=document.getElementById('pasteArea').value;
+  if(!raw.trim()){alert('Paste the '+SOURCES[id].name+' tab first.');return;}
+  if(id==='users'){
+    saveRaw('users',raw);
+    parseUsers(raw);
+  } else {
+    var rows=PARSERS[id](raw);
+    if(!rows||!rows.length){alert('No valid rows parsed for '+SOURCES[id].name+'. Check you picked the tab that matches the paste.');return;}
+    DATA[id]=rows;
+    saveRaw(id,raw);
+  }
+  document.getElementById('pasteArea').value='';
+  updateSync();
+  refreshAfterLoad();
+  closeModal();
+}
+function saveRaw(id,raw){try{window.storage.set(SOURCES[id].key,raw);}catch(e){}}
+async function loadSaved(){
+  var loadedUsers=false;
+  try{var ru=await window.storage.get(SOURCES.users.key);if(ru&&ru.value&&ru.value.length>50){parseUsers(ru.value);loadedUsers=true;}}catch(e){}
+  for(var id in DATA){
+    try{var r=await window.storage.get(SOURCES[id].key);if(r&&r.value&&r.value.length>30){var rows=PARSERS[id](r.value);if(rows&&rows.length)DATA[id]=rows;}}catch(e){}
+  }
+  updateSync();
+  return loadedUsers;
+}
+function updateSync(){
+  var parts=[];
+  if(userRows.length)parts.push(userRows.length+' users');
+  for(var id in DATA){if(DATA[id].length)parts.push(DATA[id].length+' '+SOURCES[id].name.toLowerCase());}
+  var el=document.getElementById('syncStatus'); if(el)el.textContent=parts.join(' \u00b7 ');
+}
+
+function parseUsers(raw){
+  var lines=raw.split(/\r?\n/);
+  var headerIdx=findHeaderLine(lines,/user id/i);
+  if(headerIdx<0){alert('Could not find a header row containing "User ID".');return;}
+  var body=lines.slice(headerIdx).join('\n');
+  var delim=body.indexOf('\t')>-1?'\t':',';
+  var parsed=Papa.parse(body,{header:true,skipEmptyLines:true,dynamicTyping:false,delimiter:delim});
+  var rows=parsed.data;
+  var keyMap={};
+  if(rows.length){Object.keys(rows[0]).forEach(function(k){keyMap[k.trim().toLowerCase()]=k;});}
+  function col(row,name){var k=keyMap[name.toLowerCase()];return k!==undefined?(row[k]||'').toString().trim():'';}
+  userRows=[];
+  rows.forEach(function(r){
+    var id=col(r,'User ID'); if(!id) return;
+    var reg=col(r,'Reg Date (PT)'); if(!reg.match(/\d{4}-\d{2}-\d{2}/)) return;
+    var ftd=col(r,'FTD Date (PT)'), act=col(r,'Activity Date (PT)');
+    userRows.push({id:id,regDate:reg,ftdDate:ftd.match(/\d{4}-\d{2}-\d{2}/)?ftd:'',activityDate:act.match(/\d{4}-\d{2}-\d{2}/)?act:'',
+      state:normLabel(col(r,'State'))||'(none)',promo:normLabel(col(r,'Promo Codes Used'))||'(none)',ftdAmount:num(col(r,'FTD Amount')),
+      handle:num(col(r,'Handle')),ggr:num(col(r,'GGR')),ngr:num(col(r,'NGR')),bonus:num(col(r,'Bonus Awarded')),entries:num(col(r,'Entries'))});
+  });
+  if(!userRows.length){alert('No valid user rows parsed. Check that the data has a Reg Date column.');return;}
+  finishLoad();
+}
+function finishLoad(){
+  var stSet={}, prSet={};
+  userRows.forEach(function(u){stSet[u.state]=1;prSet[u.promo]=1;});
+  allStates=Object.keys(stSet).sort();
+  allPromos=Object.keys(prSet).sort();
+  selectedStates=allStates.slice();
+  selectedPromos=allPromos.slice();
+  selectedPromosPaid=allPromos.slice();
+  var dates=userRows.map(function(u){return u.regDate;}).sort();
+  minDate=dates[0]; maxDate=dates[dates.length-1];
+  updateSync();
+  renderShell();
+  initFilters();
+  switchView(currentView);
+}
+
+/* ============ SHELLS ============ */
+function renderShell(){
+  document.getElementById('mainContent').innerHTML=
+    '<section id="view-gaming" class="view'+(currentView==='gaming'?' active':'')+'">'+gamingShellHtml()+'</section>'+
+    '<section id="view-paid" class="view'+(currentView==='paid'?' active':'')+'">'+paidShellHtml()+'</section>'+
+    '<section id="view-active" class="view'+(currentView==='active'?' active':'')+'">'+activeShellHtml()+'</section>'+
+    '<section id="view-ltv" class="view'+(currentView==='ltv'?' active':'')+'">'+ltvShellHtml()+'</section>'+
+    '<section id="view-glossary" class="view'+(currentView==='glossary'?' active':'')+'">'+glossaryShellHtml()+'</section>';
+}
+function gamingShellHtml(){
+  var h='';
+  h+='<div class="filter-bar"><h3>Master Filters</h3>';
+  h+='<div class="filter-grid-dates">';
+  h+=dateFilterHtml('act','Activity Date','');
+  h+=dateFilterHtml('ftd','FTD Date','');
+  h+=dateFilterHtml('reg','Registration Date','');
+  h+='</div>';
+  h+='<div class="filter-grid-dims">';
+  h+=msFilterHtml('state','State');
+  h+=msFilterHtml('promo','Promo Code');
+  h+=msFilterHtml('sport','Sport');
+  h+=msFilterHtml('source','Source');
+  h+=msFilterHtml('metric','Metrics');
+  h+='</div></div>';
+  h+='<div class="filter-summary" id="filterSummary"></div>';
+  h+='<div class="note" id="sourceUnavailNote" style="display:none"></div>';
+  h+='<div id="overview"></div>';
+  h+='<div class="charts-2">';
+  h+='<div class="chart-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px"><div class="chart-title" style="margin-bottom:0">Trends by Period</div><div class="ctrl-row"><div class="mode-toggle"><button id="tm_metrics" class="active" onclick="setTrendMode(\'metrics\',this)">Metrics</button><button id="tm_sport" onclick="setTrendMode(\'sport\',this)">Sport Mix</button></div><div class="mode-toggle"><button id="tr_day" onclick="setTrendPeriod(\'day\',this)">Day</button><button id="tr_week" onclick="setTrendPeriod(\'week\',this)">Week</button><button id="tr_month" class="active" onclick="setTrendPeriod(\'month\',this)">Month</button></div></div></div><div id="trendChips" class="ctrl-row" style="margin-bottom:12px"></div><canvas id="trendChart" height="200"></canvas></div>';
+  h+='<div class="chart-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap"><div class="chart-title" style="margin-bottom:0" id="srcChartTitle">Handle by Sport</div><div class="ctrl-row"><select id="srcMetricSel" class="sel" onchange="changeSrcMetric()"></select><select id="srcDimSel" class="sel" onchange="changeSrcDim()"><option value="state">by State</option><option value="source">by Source</option><option value="sport" selected>by Sport</option></select></div></div><div style="max-width:300px;margin:0 auto"><canvas id="srcChart" height="150"></canvas></div><div class="chart-title" style="margin:20px 0 10px">Acquisition Funnel <span style="color:#475569;font-weight:400">(AppsFlyer)</span></div><div id="funnelWrap" style="margin-top:4px"></div></div>';
+  h+='</div>';
+  h+='<div class="section-header"><span class="section-title" style="margin:0">Breakdown</span><div class="ctrl-row">';
+  h+='<span class="lbl">Break down by</span><select id="bkBy" class="sel" onchange="setBreakdownBy()"><option value="month">Month</option><option value="week">Week</option><option value="day">Day</option><option value="state">State</option><option value="sport">Sport</option><option value="promo">Promo</option></select>';
+  h+='<div class="mode-toggle" id="dimToggle"><button id="dim_reg" class="active" onclick="setDim(\'reg\',this)">By Reg Date</button><button id="dim_ftd" onclick="setDim(\'ftd\',this)">By FTD Date</button></div>';
+  h+='<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#94a3b8;cursor:pointer"><input type="checkbox" id="bdPct" onchange="render()" style="accent-color:var(--accent);width:auto"> % Change</label>';
+  h+='</div></div>';
+  h+='<div class="chart-card" style="margin-top:0"><div class="tbl-scroll"><table class="freeze-col"><thead><tr id="bkHead"></tr></thead><tbody id="bkBody"></tbody><tfoot id="bkTotal"></tfoot></table></div></div>';
+  h+='<div class="section-title" style="margin-top:24px">State Performance <span style="color:#475569;font-weight:400;text-transform:none;letter-spacing:0">(top 5 by handle)</span></div>';
+  h+='<div class="chart-card" style="margin-top:0" id="stateTable"></div>';
+  h+='<div class="section-title" style="margin-top:24px">By Day of Week</div>';
+  h+='<div class="chart-card" style="margin-top:0"><canvas id="dowChart" height="130"></canvas></div>';
+  h+='<div class="chart-card" style="margin-top:12px"><div class="tbl-scroll"><table><thead><tr id="dowHead"></tr></thead><tbody id="dowBody"></tbody><tfoot id="dowTotal"></tfoot></table></div><div style="font-size:11px;color:#64748b;margin-top:10px" id="dowNote"></div></div>';
+  h+='<div class="section-title" style="margin-top:24px">Entry Amount Distribution</div>';
+  h+='<div class="chart-card" style="margin-top:0"><canvas id="entryDistChart" height="130"></canvas></div>';
+  h+='<div class="chart-card" style="margin-top:12px"><div class="tbl-scroll"><table><thead><tr id="entryDistHead"></tr></thead><tbody id="entryDistBody"></tbody><tfoot id="entryDistTotal"></tfoot></table></div><div style="font-size:11px;color:#64748b;margin-top:10px" id="entryDistNote"></div></div>';
+  return h;
+}
+function paidShellHtml(){
+  var h='';
+  h+='<div class="filter-bar"><h3>Paid Marketing Filters</h3><div style="display:flex;gap:28px;align-items:flex-end;flex-wrap:wrap">';
+  h+='<div style="flex:0 0 340px;max-width:100%">'+dateFilterHtml('acq','Date','')+'</div>';
+  h+='<div style="flex:0 0 260px;max-width:100%">'+msFilterHtml('psource','Source')+'</div>';
+  h+='<div style="flex:0 0 260px;max-width:100%">'+msFilterHtml('ppromo','Promo Code')+'</div>';
+  h+='</div></div>';
+  h+='<div class="note" style="margin-bottom:16px"><strong>Note:</strong> FTD source data historically through July 2026 is misrepresented.</div>';
+  h+='<div class="section-title">Spend &amp; Efficiency</div><div class="kpi-grid" id="acqKpis"></div>';
+  h+='<div class="charts-2">';
+  h+='<div class="chart-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap"><div class="chart-title" style="margin-bottom:0" id="paidDonutTitle">Spend by Source</div><select id="paidDonutSel" class="sel" onchange="changePaidDonut()"><option value="spend">Spend</option><option value="installs">Installs</option><option value="registrations">Registrations</option><option value="ftds">FTDs</option></select></div><canvas id="acqSpendChart" height="200"></canvas></div>';
+  h+='<div class="chart-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap"><div class="chart-title" style="margin-bottom:0" id="acqInstTitle">Installs by Source <span style="color:#475569;font-weight:400">(AppsFlyer)</span></div><div class="mode-toggle"><button id="pi_installs" class="active" onclick="setPaidInstMetric(\'installs\',this)">Installs</button><button id="pi_registrations" onclick="setPaidInstMetric(\'registrations\',this)">Registrations</button><button id="pi_ftds" onclick="setPaidInstMetric(\'ftds\',this)">FTDs</button></div></div><canvas id="acqInstallChart" height="200"></canvas></div>';
+  h+='</div>';
+  h+='<div class="section-title" style="margin-top:20px">Spend &middot; Installs &middot; Registrations &middot; FTDs by Source</div>';
+  h+='<div class="chart-card" style="margin-top:0;overflow-x:auto"><table><thead><tr id="paidSrcHead"></tr></thead><tbody id="paidSrcBody"></tbody><tfoot id="paidSrcTotal"></tfoot></table></div>';
+  h+='<div class="section-title" style="margin-top:24px">Promo Code Performance <span style="color:#475569;font-weight:400;text-transform:none;letter-spacing:0">(same offer for all &mdash; code = acquisition tag; ST&#42; = referral)</span></div>';
+  h+='<div class="chart-card" style="margin-top:0" id="promoTable"></div>';
+  h+='<div class="note" id="acqNote"></div>';
+  return h;
+}
+function activeShellHtml(){
+  var h='';
+  h+='<div class="filter-bar"><h3>Retention</h3><div class="filter-grid">';
+  h+=dateFilterHtml('eng','Date','');
+  h+='</div></div>';
+  h+='<div class="section-title">Active Users &amp; Engagement (DAU / WAU / MAU)</div><div class="kpi-grid" id="engKpis"></div>';
+  h+='<div class="section-title" style="margin-top:24px">FTD Cohort Retention <span style="color:#475569;font-weight:400;text-transform:none;letter-spacing:0">(distinct depositors active N months after their first deposit)</span></div>';
+  h+='<div class="chart-card" style="margin-top:0" id="cohortRetention"></div>';
+  h+='<div class="section-header" style="margin-top:24px"><span class="section-title" style="margin:0">New vs Returning <span style="color:#475569;font-weight:400;text-transform:none;letter-spacing:0">(new = first deposit that period; returning = deposited earlier)</span></span><div class="mode-toggle"><button id="nvr_day" onclick="setNvrPeriod(\'day\',this)">Day</button><button id="nvr_week" onclick="setNvrPeriod(\'week\',this)">Week</button><button id="nvr_month" class="active" onclick="setNvrPeriod(\'month\',this)">Month</button></div></div>';
+  h+='<div class="chart-card" style="margin-top:0" id="newVsReturning"></div>';
+  h+='<div class="section-title" style="margin-top:24px">Active Users Over Time</div>';
+  h+='<div class="chart-card" style="margin-top:0"><canvas id="engChart" height="150"></canvas></div>';
+  h+='<div class="note" id="engNote"></div>';
+  return h;
+}
+function glossaryShellHtml(){
+  function grp(title,rows){
+    var body=rows.map(function(r){return '<tr><td style="white-space:nowrap;font-weight:600;color:#e2e8f0;vertical-align:top;padding-right:18px">'+r[0]+'</td><td style="color:#94a3b8">'+r[1]+(r[2]?'<div style="color:#475569;font-size:12px;margin-top:3px">'+r[2]+'</div>':'')+'</td></tr>';}).join('');
+    return '<div class="section-title" style="margin-top:22px">'+title+'</div><div class="chart-card" style="margin-top:0"><table style="width:100%"><tbody>'+body+'</tbody></table></div>';
+  }
+  var h='';
+  h+='<div class="filter-bar"><h3>Glossary &amp; Definitions</h3><p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0">How each metric is defined and calculated, and which data source it comes from. Three sources feed this dashboard: the <strong style="color:#cbd5e1">Users tab</strong> (one row per player, lifetime totals &mdash; the source of truth for player counts), the <strong style="color:#cbd5e1">Cohort Activity tab</strong> (one row per player &times; day &times; sport &mdash; dated betting activity), and <strong style="color:#cbd5e1">AppsFlyer</strong> (installs &amp; spend by media source).</p></div>';
+  h+=grp('Source Data &mdash; where each raw field comes from',[
+    ['Handle','Total amount a player wagered (sum of stakes). Column on both the Users tab (lifetime per player) and the Cohort Activity tab (per player&times;day&times;sport). The dashboard reads Cohort Activity when an activity-date range or sport filter is active, otherwise the Users-tab lifetime total.','Raw column: <em>Handle</em>. Summed across the filtered rows.'],
+    ['GGR','Gross Gaming Revenue: wagers minus winnings paid back to players, before any bonus cost. Positive = the book won. Same dual-source rule as Handle.','Raw column: <em>GGR</em>. Summed.'],
+    ['NGR','Net Gaming Revenue: GGR minus bonus and promotional costs. This is the real revenue line and can be negative in heavy-promo months. Same dual-source rule as Handle.','Raw column: <em>NGR</em>. Summed. (Cohort Activity has no bonus column, so NGR there is already net.)'],
+    ['FTD','First-Time Deposit &mdash; a flag that a player made their first-ever deposit. Counted as a unique player event; a player is an FTD exactly once.','Derived from a non-empty <em>FTD Date</em> on the Users tab. FTDs = count of unique players with an FTD Date in the window.'],
+    ['FTD Date','The calendar date of a player&rsquo;s first deposit. Drives which month a depositor is counted in and anchors the retention cohorts.','Raw column: <em>FTD Date (PT)</em> on the Users tab (also carried on Cohort Activity rows).'],
+    ['Reg','Registration &mdash; a player creating an account. Counted as a unique player; one row per player on the Users tab.','Derived from <em>Reg Date</em> on the Users tab. Registrations = count of unique players with a Reg Date in the window.'],
+    ['Reg Date','The calendar date a player registered their account. Determines the registration cohort and the new-vs-returning split.','Raw column: <em>Reg Date (PT)</em> on the Users tab (also carried on Cohort Activity rows).'],
+    ['Entries','Number of contest / bet entries a player placed. A volume measure of activity distinct from dollars wagered.','Raw column: <em>Entries</em> on the Users tab (lifetime) and Cohort Activity (dated). Summed.'],
+    ['Bonus Awarded','Total promotional bonus dollars credited to a player (e.g. deposit-match). Treated as a marketing cost that reduces NGR.','Raw column: <em>Bonus Awarded</em> on the Users tab only &mdash; the Cohort Activity tab does not carry bonus, so bonus figures are always attributed to the registration cohort.']
+  ]);
+  h+=grp('Player Counts &mdash; from the Users tab (unique)',[
+    ['Registrations','Count of unique players whose <em>registration date</em> falls in the selected window.','Users tab, keyed by Reg Date. One row per player, so no double-counting.'],
+    ['FTDs','First-Time Depositors &mdash; unique players whose <em>first deposit date</em> falls in the window.','Users tab, keyed by FTD Date. A player is only ever an FTD once.'],
+    ['FTD Rate','Share of registered players who made a first deposit.','FTDs \u00f7 Registrations.'],
+    ['Avg FTD Amount','Average size of the first deposit across depositors in the window.','Sum of FTD amounts \u00f7 FTDs.']
+  ]);
+  h+=grp('Gaming / Revenue &mdash; dated activity',[
+    ['Handle','Total amount wagered (stakes) in the window.','Cohort Activity when an activity date/sport is in play; otherwise Users-tab lifetime totals.'],
+    ['GGR','Gross Gaming Revenue &mdash; wagers minus winnings paid out, before bonuses.','Sum of GGR.'],
+    ['NGR','Net Gaming Revenue &mdash; GGR after bonuses and promotional costs.','Sum of NGR. Can be negative in heavy-promo months.'],
+    ['GGR %','Gross hold &mdash; what share of Handle the book keeps before bonuses.','GGR \u00f7 Handle.'],
+    ['NGR %','Net hold &mdash; share of Handle kept after bonuses.','NGR \u00f7 Handle.'],
+    ['Bonus Awarded','Total promotional bonus credited to players.','Users tab (Bonus Awarded column), attributed to the registration cohort.'],
+    ['Entries','Total contest/bet entries in the window.','Sum of Entries.']
+  ]);
+  h+=grp('Per-Player Averages',[
+    ['Handle / User','Average amount wagered per player.','Handle \u00f7 players.'],
+    ['NGR / User','Average net revenue per player (ARPU).','NGR \u00f7 players.'],
+    ['Bonus / User','Average bonus credited per registered player.','Bonus \u00f7 Registrations.'],
+    ['Entries / User','Average entries per registered player.','Entries \u00f7 Registrations.'],
+    ['NGR / $ Bonus','Bonus payback &mdash; net revenue returned per bonus dollar spent.','NGR \u00f7 Bonus. Above 1.0x means the cohort has returned more NGR than the bonus cost.']
+  ]);
+  h+=grp('Marketing &mdash; AppsFlyer + spend',[
+    ['Installs','App installs in the window, by media source.','AppsFlyer.'],
+    ['Paid Spend','Media spend across Meta, Apple, Affiliate &amp; Influencer.','AppsFlyer / channel exports.'],
+    ['CPI','Cost per install.','Spend \u00f7 Installs.'],
+    ['Cost / Reg (CPReg)','Cost per registration.','Spend \u00f7 Registrations.'],
+    ['CPFTD','Cost per first-time depositor.','Spend \u00f7 FTDs.'],
+    ['Registrations / FTDs (Paid tab)','From the Users tab when all sources are selected; switches to AppsFlyer per-source attribution when a single source is narrowed.','Note: AppsFlyer FTD source data through July 2026 is known to be misrepresented.']
+  ]);
+  h+=grp('Engagement &mdash; GA4',[
+    ['DAU / WAU / MAU','Daily / Weekly / Monthly active users.','From GA4.'],
+    ['Stickiness (DAU/MAU)','How often monthly users show up daily. Higher = more habitual.','Latest DAU \u00f7 latest MAU.'],
+    ['DAU / WAU','Daily engagement within the weekly base.','Latest DAU \u00f7 latest WAU.'],
+    ['MAU Growth','Change in MAU from the first to the last day of the window.','(Last MAU \u2212 First MAU) \u00f7 First MAU.']
+  ]);
+  h+=grp('Tables',[
+    ['Players (column)','Count of unique registered players (accounts) in the group &mdash; <em>not</em> active players.','From the Users tab; one row per account.'],
+    ['Registration Cohort LTV','Lifetime value grouped by signup month. Tied to the Activity Date filter (by registration date), so it narrows with the selected window.','Users tab, grouped by Reg month.'],
+    ['State Performance','Lifetime player value by state, sorted by Handle (highest first).','Users tab, grouped by State.'],
+    ['Promo Code Performance','All players received the same offer (100% match up to $250), so the code is an acquisition tag, not an offer variant. Codes starting with <strong>ST</strong> are referrals and are consolidated into one row. Compares cohort quality (NGR/User) and payback (NGR / $ Bonus) by code.','Users tab, grouped by Promo Code.'],
+    ['New vs Returning Players','Splits Handle &amp; NGR in the selected Activity window by whether the player was acquired during the window (<strong>New</strong>, registered inside the window) or was already on the book (<strong>Returning</strong>, registered before it).','Cohort Activity tab, using each row\u2019s Reg Date vs the window start.']
+  ]);
+  h+='<div class="note" style="margin-top:20px"><strong>A note on filters:</strong> setting an <strong>Activity Date</strong> range (or narrowing Sport) scopes Handle/GGR/NGR/Entries to dated activity from the Cohort tab. Registrations, FTDs and Bonus always come from the unique Users tab, keyed to their own dates (registration or first-deposit), so those counts stay accurate regardless of the activity window.</div>';
+  return h;
+}
+
+function ltvSlider(id,name,val,min,max,step,hint){
+  return '<div class="ltv-ctrl"><div class="ltv-ctrl-top"><span class="ltv-ctrl-name">'+name+'</span><span class="ltv-ctrl-val" id="'+id+'Lbl"></span></div>'+
+    '<input type="range" id="'+id+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'">'+
+    '<div class="ltv-hint">'+hint+'</div></div>';
+}
+function ltvShellHtml(){
+  var h='<div class="ltv-wrap">';
+  h+='<div class="filter-bar" style="margin-bottom:20px"><h3>LTV per Depositor — Handle-Driven Model</h3><p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0">Realized GGR is too whale-distorted to extrapolate directly, so this projects wagering volume — which is stable — and applies a hold rate you control. Cohorts from <strong style="color:#cbd5e1">Jan 2025</strong> onward; registrations under promo code <strong style="color:#cbd5e1">SKINNY</strong> are excluded. Handle, GGR% and bonus default to planning targets; CAC is seeded from your loaded data. All are adjustable.</p></div>';
+  h+='<section class="ltv-verdict"><div class="ltv-vlabel" id="ltvVLabel">Projected 12-month LTV per depositor</div><div class="ltv-corridor"><span class="ltv-val" id="ltvVMain">—</span><span class="ltv-after" id="ltvVAfter"></span></div><p class="ltv-note" id="ltvVNote"></p></section>';
+  h+='<div class="ltv-grid"><aside class="ltv-panel"><h3>Inputs</h3>';
+  h+=ltvSlider('ltvHandle','Month-0 handle per depositor',244,50,1200,5,'Wagering volume in the FTD month. Seeded from recent clean cohorts.');
+  h+=ltvSlider('ltvHold','GGR %',17,0,25,0.1,'Multiplied by handle to produce GGR. Seeded to your realized hold; raise it to model a target.');
+  h+=ltvSlider('ltvBonus','Bonus cost per depositor',50,0,600,5,'Bonus awarded per depositor. ~75% lands in month 0.');
+  h+=ltvSlider('ltvCac','CAC per depositor',30,0,800,5,'Blended paid spend ÷ depositors since Jan 2025. Excludes bonus, counted above.');
+  h+=ltvSlider('ltvHor','Horizon',12,3,36,1,'Handle decay is fitted live to a power curve. Beyond the observed window this is extrapolation.');
+  h+='</aside>';
+  h+='<main class="ltv-panel"><div class="ltv-chart-head"><h3 style="margin:0">Projected net LTV per depositor vs CAC</h3><div class="ltv-legend"><span><i style="background:var(--accent)"></i>Projected LTV</span><span><i style="background:#f59e0b"></i>CAC · payback</span></div></div>';
+  h+='<svg id="ltvChart" viewBox="0 0 720 340" role="img" aria-label="Projected net LTV per depositor versus CAC, with payback month marked"></svg>';
+  h+='<div class="ltv-stats">'+
+     '<div class="ltv-stat"><div class="ltv-stat-k">Cumulative handle / depositor</div><div class="ltv-stat-v" id="ltvOHandle">—</div><div class="ltv-stat-n" id="ltvOMult">—</div></div>'+
+     '<div class="ltv-stat"><div class="ltv-stat-k">Gross revenue / depositor</div><div class="ltv-stat-v" id="ltvOGgr">—</div><div class="ltv-stat-n">GGR before bonus</div></div>'+
+     '<div class="ltv-stat"><div class="ltv-stat-k">Net LTV / depositor</div><div class="ltv-stat-v" id="ltvONgr">—</div><div class="ltv-stat-n">NGR, after bonus</div></div>'+
+     '<div class="ltv-stat"><div class="ltv-stat-k">Contribution / depositor</div><div class="ltv-stat-v" id="ltvOCm">—</div><div class="ltv-stat-n">after CAC</div></div>'+
+     '<div class="ltv-stat"><div class="ltv-stat-k">Breakeven hold</div><div class="ltv-stat-v" id="ltvOBe">—</div><div class="ltv-stat-n">to cover bonus+CAC</div></div>'+
+     '<div class="ltv-stat"><div class="ltv-stat-k">Payback</div><div class="ltv-stat-v" id="ltvOPb">—</div><div class="ltv-stat-n">months to recover</div></div>'+
+     '</div>';
+  h+='<div class="ltv-tablewrap"><table class="ltv-table"><thead><tr><th>Month</th><th>Handle</th><th>Cum. handle</th><th>Cum. GGR</th><th>Bonus</th><th>Cum. net LTV</th></tr></thead><tbody id="ltvTbody"></tbody></table><p class="ltv-caption">Bonus expense phasing: ~75% month 0, then a short tail to month 6 (assumed — the cohort feed carries no monthly bonus).</p></div>';
+  h+='</main></div>';
+  h+='<section class="ltv-notes"><h3>Methodology</h3><div id="ltvNotes"></div></section>';
+  h+='</div>';
+  return h;
+}
+
+function dateFilterHtml(p,label,hint){
+  return '<div class="filter-item"><label><span>'+label+(hint?' <span class="hint">('+hint+')</span>':'')+'</span>'+
+    '<span class="mode-toggle"><button id="'+p+'_mMonth" class="active" onclick="setMode(\''+p+'\',\'month\')">Month</button><button id="'+p+'_mDate" onclick="setMode(\''+p+'\',\'date\')">Dates</button></span></label>'+
+    '<div class="ctrl-row" style="gap:6px;margin-bottom:6px"><button class="qbtn" onclick="ddQuick(\''+p+'\',\'mtd\')">MTD</button><button class="qbtn" onclick="ddQuick(\''+p+'\',\'ytd\')">YTD</button><button class="qbtn" onclick="ddQuick(\''+p+'\',\'all\')">All</button></div>'+
+    '<div class="range-row" id="'+p+'_month"><div class="rng-col"><span class="rng-cap">From</span>'+ddHtml(p+'_fromM')+'</div><div class="rng-col"><span class="rng-cap">To</span>'+ddHtml(p+'_toM')+'</div></div>'+
+    '<div class="range-row" id="'+p+'_date" style="display:none"><div class="rng-col"><span class="rng-cap">From</span><input type="date" id="'+p+'_fromD" onchange="applyFilters()"></div><div class="rng-col"><span class="rng-cap">To</span><input type="date" id="'+p+'_toD" onchange="applyFilters()"></div></div></div>';
+}
+function msFilterHtml(p,label){
+  return '<div class="filter-item"><label><span>'+label+'</span></label><div class="ms-wrap" id="'+p+'Wrap"><button class="ms-btn" onclick="toggleMs(event,\''+p+'Dropdown\')"><span id="'+p+'Label">All</span><span>&#9662;</span></button><div class="ms-dropdown" id="'+p+'Dropdown"></div></div></div>';
+}
+
+function ymList(){
+  var out=[]; var s=new Date(minDate+'T00:00:00'), e=new Date(maxDate+'T00:00:00');
+  var y=s.getFullYear(),m=s.getMonth();
+  while(y<e.getFullYear()||(y===e.getFullYear()&&m<=e.getMonth())){out.push({y:y,m:m});m++;if(m>11){m=0;y++;}}
+  return out;
+}
+/* ===== Collapsible month dropdown (years 2023/2024/2025 collapse, latest year open) ===== */
+var ddState={}, ddOpen={};
+function ddHtml(key){
+  return '<div class="dd-wrap" id="'+key+'Wrap"><button type="button" class="dd-btn" onclick="toggleDD(event,\''+key+'\')"><span id="'+key+'Lbl">All</span><span>\u25be</span></button><div class="dd-panel" id="'+key+'Panel"></div></div>';
+}
+function ddLatestYear(){var yms=ymList();return yms.length?yms[yms.length-1].y:new Date().getFullYear();}
+function buildDD(key){
+  var panel=document.getElementById(key+'Panel'); if(!panel) return;
+  var yms=ymList(), years={};
+  yms.forEach(function(o){(years[o.y]=years[o.y]||[]).push(o.m);});
+  var yks=Object.keys(years).sort();
+  var open=ddOpen[key]||{};
+  var cur=ddState[key]||'all';
+  var h='<div class="dd-opt'+(cur==='all'?' sel':'')+'" onclick="ddPick(event,\''+key+'\',\'all\')">All</div>';
+  yks.forEach(function(y){
+    var isOpen=!!open[y];
+    h+='<div class="dd-year" onclick="ddToggleYear(event,\''+key+'\',\''+y+'\')"><span>'+y+'</span><span>'+(isOpen?'\u25be':'\u25b8')+'</span></div>';
+    if(isOpen){
+      years[y].forEach(function(m){
+        var val=y+'-'+pad(m+1);
+        h+='<div class="dd-month'+(cur===val?' sel':'')+'" onclick="ddPick(event,\''+key+'\',\''+val+'\')">'+MONTHS[m]+' '+y+'</div>';
+      });
+    }
+  });
+  panel.innerHTML=h;
+}
+function ddLabel(key){
+  var v=ddState[key]||'all', lbl=document.getElementById(key+'Lbl'); if(!lbl) return;
+  if(v==='all') lbl.textContent='All';
+  else lbl.textContent=MONTHS[parseInt(v.slice(5,7))-1]+' '+v.slice(0,4);
+}
+function toggleDD(e,key){
+  e.stopPropagation();
+  var panel=document.getElementById(key+'Panel'), wasOpen=panel.classList.contains('open');
+  document.querySelectorAll('.dd-panel.open').forEach(function(x){x.classList.remove('open');});
+  if(!wasOpen){ buildDD(key); panel.classList.add('open'); }
+}
+function ddPick(e,key,val){
+  e.stopPropagation();
+  ddState[key]=val; ddLabel(key);
+  document.getElementById(key+'Panel').classList.remove('open');
+  applyFilters();
+}
+function ddToggleYear(e,key,y){
+  e.stopPropagation();
+  ddOpen[key]=ddOpen[key]||{}; ddOpen[key][y]=!ddOpen[key][y];
+  buildDD(key);
+}
+function ddQuick(p,kind){
+  if(modes[p]!=='month') setMode(p,'month');
+  var yms=ymList(); if(!yms.length) return; var last=yms[yms.length-1];
+  var fromV,toV;
+  if(kind==='all'){ fromV='all'; toV='all'; }
+  else if(kind==='mtd'){ fromV=last.y+'-'+pad(last.m+1); toV=fromV; }
+  else { fromV=last.y+'-01'; toV=last.y+'-'+pad(last.m+1); } // ytd
+  ddState[p+'_fromM']=fromV; ddState[p+'_toM']=toV;
+  ddOpen[p+'_fromM']=ddOpen[p+'_fromM']||{}; ddOpen[p+'_fromM'][last.y]=true;
+  ddOpen[p+'_toM']=ddOpen[p+'_toM']||{}; ddOpen[p+'_toM'][last.y]=true;
+  ddLabel(p+'_fromM'); ddLabel(p+'_toM'); buildDD(p+'_fromM'); buildDD(p+'_toM');
+  applyFilters();
+}
+function initFilters(){
+  var latest=ddLatestYear();
+  ['act','ftd','reg','acq','eng'].forEach(function(p){
+    modes[p]='month';
+    ['_fromM','_toM'].forEach(function(sfx){
+      var key=p+sfx;
+      ddState[key]='all';
+      ddOpen[key]={}; ddOpen[key][latest]=true;
+      ddLabel(key); buildDD(key);
+    });
+    var fd=document.getElementById(p+'_fromD'),td=document.getElementById(p+'_toD');
+    fd.value=minDate;td.value=maxDate;fd.min=minDate;fd.max=maxDate;td.min=minDate;td.max=maxDate;
+  });
+  // Default the primary Activity Date and Retention filters to YTD
+  var yms=ymList();
+  if(yms.length){
+    var lastY=yms[yms.length-1];
+    ['act','eng'].forEach(function(p){
+      ddState[p+'_fromM']=lastY.y+'-01';
+      ddState[p+'_toM']=lastY.y+'-'+pad(lastY.m+1);
+      ddLabel(p+'_fromM'); ddLabel(p+'_toM'); buildDD(p+'_fromM'); buildDD(p+'_toM');
+    });
+  }
+  // Paid Marketing date filter opens as a calendar (Dates mode) focused on the current month.
+  (function(){
+    var now=new Date();
+    var curFrom=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-01';
+    var curTo=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+    modes['acq']='date';
+    var mBtn=document.getElementById('acq_mMonth'), dBtn=document.getElementById('acq_mDate');
+    if(mBtn) mBtn.classList.remove('active');
+    if(dBtn) dBtn.classList.add('active');
+    var mEl=document.getElementById('acq_month'), dEl=document.getElementById('acq_date');
+    if(mEl) mEl.style.display='none';
+    if(dEl) dEl.style.display='flex';
+    var fd=document.getElementById('acq_fromD'), td=document.getElementById('acq_toD');
+    // allow selecting up to today even if the loaded data ends earlier, so the calendar lands on the current month
+    var maxSel=(curTo>maxDate)?curTo:maxDate;
+    if(fd){ fd.min=minDate; fd.max=maxSel; fd.value=curFrom; }
+    if(td){ td.min=minDate; td.max=maxSel; td.value=curTo; }
+  })();
+  buildMs('state',allStates,selectedStates);
+  buildMs('promo',promoDisplayItems(),selectedPromos);
+  buildMs('ppromo',promoDisplayItems(),selectedPromosPaid);
+  var spSet={}; (DATA.cohort||[]).forEach(function(x){spSet[x.sport]=1;});
+  allSports=Object.keys(spSet).sort(); selectedSports=allSports.slice();
+  buildMs('sport',allSports,selectedSports);
+  var srcSet={}; acqRows().forEach(function(x){srcSet[x.source]=1;});
+  affCpaSourceLabels().forEach(function(s){srcSet[s]=1;});
+  allSources=Object.keys(srcSet).sort();
+  selectedSources=allSources.slice(); selectedSourcesPaid=allSources.slice();
+  buildMs('source',allSources,selectedSources);
+  buildMs('psource',allSources,selectedSourcesPaid);
+  buildMetricMs();
+  buildTrendChips();
+  document.getElementById('srcMetricSel').innerHTML=DONUT_METRICS.map(function(m){return '<option value="'+m[0]+'"'+(m[0]===srcMetric?' selected':'')+'>'+m[1]+'</option>';}).join('');
+  ltvInit();
+}
+
+function buildMs(p,items,sel){
+  var dd=document.getElementById(p+'Dropdown'); if(!dd) return;
+  var norm=items.map(function(it){return (typeof it==='string')?{v:it,label:it}:it;});
+  var h='<input class="ms-search" placeholder="Search\u2026" oninput="msSearch(this,\''+p+'\')" onclick="event.stopPropagation()">';
+  h+='<div class="ms-option" onclick="toggleAll(event,\''+p+'\')"><input type="checkbox" id="'+p+'All" checked><span>All</span></div><div class="ms-divider"></div>';
+  norm.forEach(function(it){h+='<div class="ms-option" data-search="'+it.label.toLowerCase().replace(/"/g,'')+'" onclick="toggleOne(event,\''+p+'\',\''+encodeURIComponent(it.v)+'\')"><input type="checkbox" class="'+p+'Cb" data-v="'+encodeURIComponent(it.v)+'" checked><span>'+it.label+'</span></div>';});
+  dd.innerHTML=h;
+  updateMsLabel(p);
+}
+function msSearch(inp,p){
+  var q=inp.value.toLowerCase();
+  document.getElementById(p+'Dropdown').querySelectorAll('.ms-option[data-search]').forEach(function(o){
+    o.style.display=o.getAttribute('data-search').indexOf(q)>=0?'flex':'none';
+  });
+}
+function promoDisplayItems(){
+  var out=[], hasRef=false;
+  allPromos.forEach(function(pp){ if(/^ST/i.test(pp)) hasRef=true; else out.push({v:pp,label:pp}); });
+  out.sort(function(a,b){return a.label.localeCompare(b.label);});
+  if(hasRef) out.unshift({v:'__REF__',label:'Referral (ST-*)'});
+  return out;
+}
+function buildMetricMs(){
+  var dd=document.getElementById('metricDropdown');
+  var h='<div class="ms-option" onclick="toggleAllMetric(event)"><input type="checkbox" id="metricAll" checked><span>All Metrics</span></div><div class="ms-divider"></div>';
+  METRIC_DEFS.forEach(function(m){h+='<div class="ms-option" onclick="toggleMetric(event,\''+m.k+'\')"><input type="checkbox" class="metricCb" data-v="'+m.k+'" checked><span>'+m.l+'</span></div>';});
+  dd.innerHTML=h;
+}
+function toggleMs(e,id){e.stopPropagation();document.getElementById(id).classList.toggle('open');}
+document.addEventListener('click',function(e){
+  ['stateWrap','promoWrap','ppromoWrap','metricWrap','sourceWrap','psourceWrap','sportWrap'].forEach(function(w){var el=document.getElementById(w);if(el&&!el.contains(e.target)){var dd=el.querySelector('.ms-dropdown');if(dd)dd.classList.remove('open');}});
+  document.querySelectorAll('.dd-wrap').forEach(function(w){if(!w.contains(e.target)){var p=w.querySelector('.dd-panel');if(p)p.classList.remove('open');}});
+});
+function toggleAll(e,p){e.stopPropagation();var all=document.getElementById(p+'All');all.checked=!all.checked;document.querySelectorAll('.'+p+'Cb').forEach(function(cb){cb.checked=all.checked;});syncMs(p);}
+function toggleOne(e,p,v){e.stopPropagation();var cb=document.querySelector('.'+p+'Cb[data-v="'+v+'"]');cb.checked=!cb.checked;var t=document.querySelectorAll('.'+p+'Cb').length,c=document.querySelectorAll('.'+p+'Cb:checked').length;document.getElementById(p+'All').checked=(t===c);syncMs(p);}
+function syncMs(p){
+  var arr=[];document.querySelectorAll('.'+p+'Cb:checked').forEach(function(cb){arr.push(decodeURIComponent(cb.getAttribute('data-v')));});
+  if(p==='state')selectedStates=arr;
+  else if(p==='source')selectedSources=arr;
+  else if(p==='psource')selectedSourcesPaid=arr;
+  else if(p==='sport')selectedSports=arr;
+  else if(p==='promo'||p==='ppromo'){ var exp=[]; arr.forEach(function(v){ if(v==='__REF__'){ allPromos.forEach(function(pp){if(/^ST/i.test(pp))exp.push(pp);}); } else exp.push(v); }); if(p==='promo')selectedPromos=exp; else selectedPromosPaid=exp; }
+  updateMsLabel(p);applyFilters();
+}
+function updateMsLabel(p){
+  if(p==='promo'||p==='ppromo'){
+    var cbs=document.querySelectorAll('.'+p+'Cb'), chk=document.querySelectorAll('.'+p+'Cb:checked');
+    var lbl=document.getElementById(p+'Label'); if(!lbl) return;
+    if(!cbs.length||chk.length===cbs.length)lbl.textContent='All';
+    else if(chk.length===0)lbl.textContent='None';
+    else if(chk.length===1)lbl.textContent=chk[0].parentNode.querySelector('span').textContent;
+    else lbl.textContent=chk.length+' selected';
+    return;
+  }
+  var total=(p==='state'?allStates.length:((p==='source'||p==='psource')?allSources.length:(p==='sport'?allSports.length:allPromos.length)));
+  var arr=(p==='state'?selectedStates:(p==='source'?selectedSources:(p==='psource'?selectedSourcesPaid:(p==='sport'?selectedSports:selectedPromos))));
+  var lbl=document.getElementById(p+'Label'); if(!lbl) return;
+  if(arr.length===total)lbl.textContent='All';else if(arr.length===0)lbl.textContent='None';else if(arr.length===1)lbl.textContent=arr[0];else lbl.textContent=arr.length+' selected';
+}
+function toggleAllMetric(e){e.stopPropagation();var all=document.getElementById('metricAll');all.checked=!all.checked;document.querySelectorAll('.metricCb').forEach(function(cb){cb.checked=all.checked;});syncMetrics();}
+function toggleMetric(e,k){e.stopPropagation();var cb=document.querySelector('.metricCb[data-v="'+k+'"]');cb.checked=!cb.checked;var t=document.querySelectorAll('.metricCb').length,c=document.querySelectorAll('.metricCb:checked').length;document.getElementById('metricAll').checked=(t===c);syncMetrics();}
+function syncMetrics(){
+  METRIC_DEFS.forEach(function(m){selectedMetrics[m.k]=false;});
+  document.querySelectorAll('.metricCb:checked').forEach(function(cb){selectedMetrics[cb.getAttribute('data-v')]=true;});
+  var t=METRIC_DEFS.length,c=document.querySelectorAll('.metricCb:checked').length;
+  var lbl=document.getElementById('metricLabel');
+  lbl.textContent=(c===t?'All Metrics':(c===0?'None':c+' metrics'));
+  render();
+}
+function buildTrendChips(){
+  document.getElementById('trendChips').innerHTML=CHART_METRICS.map(function(m){
+    var on=trendMetrics[m.k];
+    return '<button class="chip" onclick="toggleTrendMetric(\''+m.k+'\')" style="background:'+(on?m.color:'#0f1117')+';color:'+(on?'#0f1117':'#94a3b8')+';font-weight:'+(on?'700':'400')+'">'+mLabel(m.k)+'</button>';
+  }).join('');
+}
+function toggleTrendMetric(k){var on=Object.keys(trendMetrics).filter(function(x){return trendMetrics[x];});if(trendMetrics[k]&&on.length===1)return;trendMetrics[k]=!trendMetrics[k];buildTrendChips();render();}
+function setTrendPeriod(p,btn){trendPeriod=p;['tr_day','tr_week','tr_month'].forEach(function(id){document.getElementById(id).classList.remove('active');});btn.classList.add('active');render();}
+function changeSrcMetric(){srcMetric=document.getElementById('srcMetricSel').value;render();}
+function changeSrcDim(){srcDim=document.getElementById('srcDimSel').value;render();}
+function togglePaidCmp(k){paidCmp[k]=!paidCmp[k];buildPaidChips();renderPaid();}
+function buildPaidChips(){
+  var el=document.getElementById('paidCmpChips'); if(!el) return;
+  var defs=[['installs','Installs','#3b82f6'],['registrations','Registrations','#8b5cf6'],['ftds','FTDs','#f59e0b']];
+  el.innerHTML=defs.map(function(d){var on=paidCmp[d[0]];return '<button class="chip" onclick="togglePaidCmp(\''+d[0]+'\')" style="background:'+(on?d[2]:'#0f1117')+';color:'+(on?'#0f1117':'#94a3b8')+';font-weight:'+(on?'700':'400')+'">'+d[1]+'</button>';}).join('');
+}
+function changePaidDonut(){paidDonutMetric=document.getElementById('paidDonutSel').value;renderPaid();}
+function setPaidInstMetric(m,btn){paidInstMetric=m;['pi_installs','pi_registrations','pi_ftds'].forEach(function(id){var e=document.getElementById(id);if(e)e.classList.remove('active');});btn.classList.add('active');renderPaid();}
+function setNvrPeriod(p,btn){nvrPeriod=p;['nvr_day','nvr_week','nvr_month'].forEach(function(id){var e=document.getElementById(id);if(e)e.classList.remove('active');});btn.classList.add('active');renderActive();}
+function setBreakdownBy(){breakdownBy=document.getElementById('bkBy').value;render();}
+function setDim(d,btn){breakdownDim=d;document.querySelectorAll('#dim_reg,#dim_ftd').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');render();}
+
+function setMode(p,mode){
+  modes[p]=mode;
+  document.getElementById(p+'_mMonth').classList.toggle('active',mode==='month');
+  document.getElementById(p+'_mDate').classList.toggle('active',mode==='date');
+  document.getElementById(p+'_month').style.display=mode==='month'?'flex':'none';
+  document.getElementById(p+'_date').style.display=mode==='date'?'flex':'none';
+  applyFilters();
+}
+function getRange(p){
+  if(!document.getElementById(p+'_month')) return {from:null,to:null};
+  if(modes[p]==='date'){
+    var f=document.getElementById(p+'_fromD').value||null,t=document.getElementById(p+'_toD').value||null;
+    if(f&&t&&f>t){var x=f;f=t;t=x;}
+    return {from:f,to:t};
+  } else {
+    var fv=ddState[p+'_fromM']||'all',tv=ddState[p+'_toM']||'all';
+    if(fv==='all'||tv==='all') return {from:null,to:null};
+    if(fv>tv){var x=fv;fv=tv;tv=x;}
+    var ty=parseInt(tv.slice(0,4)),tm=parseInt(tv.slice(5,7))-1;
+    return {from:fv+'-01',to:tv+'-'+pad(lastDay(ty,tm))};
+  }
+}
+function rangeText(p){
+  var r=getRange(p);
+  if(!r.from||!r.to) return 'any time';
+  if(modes[p]==='date') return r.from+' to '+r.to;
+  var fl=MONTHS[parseInt(r.from.slice(5,7))-1]+' '+r.from.slice(0,4);
+  var tl=MONTHS[parseInt(r.to.slice(5,7))-1]+' '+r.to.slice(0,4);
+  return fl===tl?fl:fl+' \u2013 '+tl;
+}
+function periodKey(ds,period){
+  if(period==='day')return ds;
+  if(period==='week'){var d=new Date(ds+'T00:00:00'),day=d.getDay(),mon=new Date(d);mon.setDate(d.getDate()-(day===0?6:day-1));return mon.getFullYear()+'-'+pad(mon.getMonth()+1)+'-'+pad(mon.getDate());}
+  return ds.slice(0,7);
+}
+function periodLabel(key,period){
+  if(period==='day')return new Date(key+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+  if(period==='week')return 'Wk '+new Date(key+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  return MONTHS[parseInt(key.slice(5,7))-1]+' '+key.slice(0,4);
+}
+
+function applyFilters(){ render(); }
+function sortBy(key){if(sortKey===key)sortDir*=-1;else{sortKey=key;sortDir=-1;}render();}
+
+/* ============ NAV ============ */
+function switchView(v){
+  currentView=v;
+  document.querySelectorAll('.nav button').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-v')===v);});
+  document.querySelectorAll('.view').forEach(function(s){s.classList.remove('active');});
+  var sec=document.getElementById('view-'+v); if(sec)sec.classList.add('active');
+  renderView(v);
+}
+function render(){ renderView(currentView); }
+function renderView(v){ if(v==='glossary')return; if(v==='paid')renderPaid(); else if(v==='active')renderActive(); else if(v==='ltv')renderLtv(); else renderGaming(); }
+
+/* ============ AGGREGATION ============ */
+function activeActivityMode(){
+  if(!(DATA.cohort&&DATA.cohort.length>0)) return false;
+  var actR=getRange('act');
+  if(actR.from||actR.to) return true;
+  // Sport lives only on Cohort Activity, so narrowing it must read from there (across all dates = lifetime by sport)
+  if(allSports.length && selectedSports.length<allSports.length) return true;
+  return false;
+}
+function filteredActivity(){
+  var actR=getRange('act'),regR=getRange('reg'),ftdR=getRange('ftd');
+  return DATA.cohort.filter(function(x){
+    if(actR.from&&x.activityDate<actR.from) return false;
+    if(actR.to&&x.activityDate>actR.to) return false;
+    if(regR.from&&(!x.regDate||x.regDate<regR.from)) return false;
+    if(regR.to&&(!x.regDate||x.regDate>regR.to)) return false;
+    if(ftdR.from||ftdR.to){ if(!x.ftdDate) return false; if(ftdR.from&&x.ftdDate<ftdR.from) return false; if(ftdR.to&&x.ftdDate>ftdR.to) return false; }
+    if(selectedStates.indexOf(x.state)<0) return false;
+    if(selectedPromos.indexOf(x.promo)<0) return false;
+    if(selectedSports.indexOf(x.sport)<0) return false;
+    return true;
+  });
+}
+function aggregateActivity(rows){
+  var handle=0,ggr=0,ngr=0,entries=0,ids={},ftdIds={};
+  rows.forEach(function(x){handle+=x.handle;ggr+=x.ggr;ngr+=x.ngr;entries+=x.entries;if(x.id)ids[x.id]=1;if(x.ftdDate&&x.id)ftdIds[x.id]=1;});
+  var n=Object.keys(ids).length, ftds=Object.keys(ftdIds).length;
+  return {registrations:n,ftds:ftds,ftdRate:n?ftds/n:null,handle:handle,ggr:ggr,ngr:ngr,
+    ggrMargin:handle?ggr/handle:null,ngrMargin:handle?ngr/handle:null,bonus:null,entries:entries,avgFtd:null,
+    handlePerUser:n?handle/n:null,ngrPerUser:n?ngr/n:null,bonusPerUser:null};
+}
+function aggregate(rows){
+  var a={usCount:rows.length,regs:rows.length,ftds:0,handle:0,ggr:0,ngr:0,bonus:0,entries:0,ftdSum:0};
+  rows.forEach(function(u){
+    if(u.ftdDate){a.ftds++;a.ftdSum+=u.ftdAmount;}
+    a.handle+=u.handle;a.ggr+=u.ggr;a.ngr+=u.ngr;a.bonus+=u.bonus;a.entries+=u.entries;
+  });
+  var u=a.usCount;
+  return {registrations:a.regs,ftds:a.ftds,ftdRate:a.regs?a.ftds/a.regs:null,handle:a.handle,ggr:a.ggr,ngr:a.ngr,
+    ggrMargin:a.handle?a.ggr/a.handle:null,ngrMargin:a.handle?a.ngr/a.handle:null,bonus:a.bonus,entries:a.entries,avgFtd:a.ftds?a.ftdSum/a.ftds:null,
+    handlePerUser:u?a.handle/u:null,ngrPerUser:u?a.ngr/u:null,bonusPerUser:u?a.bonus/u:null};
+}
+
+/* ============ ACQUISITION DATA ============ */
+var SOURCE_ALIAS={'Meta':'Facebook Ads','Apple Search':'Apple Search Ads'};
+function canonSource(s){return SOURCE_ALIAS[s]||s;}
+var PAID_LABELS={'Facebook Ads':1,'Apple Search Ads':1,'Google Ads':1,'Affiliate':1,'Influencer':1};
+// Affiliate CPA tab drives source attribution. Each code maps to a source type.
+function affSourceLabel(type){ var t=(type||'').toLowerCase(); if(/influencer/.test(t)) return 'Influencer'; if(/web/.test(t)) return 'Web Content'; return 'Affiliate'; }
+function normCode(p){ return (p==null?'':(''+p)).toUpperCase().replace(/\s+/g,''); }
+function affCpaMap(){ var m={}; (DATA.affcpa||[]).forEach(function(r){ if(r.code) m[normCode(r.code)]={type:r.type,name:r.name,cpa:r.cpa,src:affSourceLabel(r.type)}; }); return m; }
+// Match a user's promo value against the CPA codes, tolerating multiple codes in one cell.
+function affMatch(map,promo){
+  var raw=(promo==null?'':(''+promo));
+  var toks=raw.split(/[\s,;/|]+/);
+  for(var i=0;i<toks.length;i++){ var k=normCode(toks[i]); if(k&&map[k]) return map[k]; }
+  var whole=normCode(raw); return map[whole]||null;
+}
+function affCpaSourceLabels(){ var set={}; (DATA.affcpa||[]).forEach(function(r){ set[affSourceLabel(r.type)]=1; }); return Object.keys(set); }
+function paidSourceSet(){
+  if(!afCostAsPaid) return PAID_LABELS;
+  var s={}; (DATA.appsflyer||[]).forEach(function(x){s[x.mediaSource||x.platform||'AppsFlyer']=1;}); return s;
+}
+function acqRows(){
+  var out=[];
+  // AppsFlyer's Google media source is exported as "googleadwords_int"; show it as "Google Ads" so its
+  // installs/sign-ups line up with the Google Ads spend tab (same alignment as Meta -> Facebook Ads).
+  (DATA.appsflyer||[]).forEach(function(x){ var src=x.mediaSource||x.platform||'AppsFlyer'; if(/^googleadwords/i.test(src)) src='Google Ads'; out.push({date:x.date,source:src,spend:x.cost,impressions:x.impressions,clicks:x.clicks,installs:x.installs,signups:x.signups||0,deposits:x.deposits||0}); });
+  (DATA.meta||[]).forEach(function(x){ out.push({date:x.date,source:'Facebook Ads',spend:x.cost,impressions:x.impressions,clicks:x.clicks,installs:x.installs,signups:0,deposits:0}); });
+  (DATA.apple||[]).forEach(function(x){ out.push({date:x.date,source:'Apple Search Ads',spend:x.cost,impressions:x.impressions,clicks:x.clicks,installs:x.installs,signups:0,deposits:0}); });
+  (DATA.googleads||[]).forEach(function(x){ out.push({date:x.date,source:'Google Ads',spend:x.cost,impressions:x.impressions,clicks:x.clicks,installs:x.installs,signups:0,deposits:0}); });
+  (DATA.affiliate||[]).forEach(function(x){ out.push({date:x.date,source:'Affiliate',spend:x.cost,impressions:x.impressions,clicks:x.clicks,installs:x.installs,signups:0,deposits:0}); });
+  (DATA.influencer||[]).forEach(function(x){ out.push({date:x.date,source:'Influencer',spend:x.cost,impressions:x.impressions,clicks:x.clicks,installs:x.installs,signups:0,deposits:0}); });
+  return out;
+}
+function paidSpendFor(r,selSet){
+  var ps=paidSourceSet(),s=0;
+  acqRows().forEach(function(x){ if(ps[x.source] && inR(x.date,r) && (!selSet||selSet[x.source])) s+=x.spend; });
+  return s;
+}
+function marketingOverview(){
+  var r=getRange('act');
+  var selSet={}; selectedSources.forEach(function(s){selSet[s]=1;});
+  var ps=paidSourceSet(),spend=0,installs=0;
+  acqRows().forEach(function(x){ if(!selSet[x.source]||!inR(x.date,r)) return; if(ps[x.source])spend+=x.spend; installs+=x.installs; });
+  return {spend:spend,installs:installs};
+}
+function haveAnyPaid(){ if(afCostAsPaid) return !!(DATA.appsflyer&&DATA.appsflyer.length); return (DATA.meta&&DATA.meta.length)||(DATA.apple&&DATA.apple.length)||(DATA.affiliate&&DATA.affiliate.length)||(DATA.influencer&&DATA.influencer.length);}
+
+// Player head-counts come from the unique Users tab (one row per user), each keyed to
+// its OWN date and independent of the other:
+//   Registrations = users whose Reg Date falls in the window
+//   FTDs          = users whose FTD Date falls in the window
+// The window for each is that metric's own date filter if set, otherwise the Activity
+// month acts as the master period (so scoping Activity to May shows May registrations and
+// May first-deposits). Sport never affects these; State/Promo always do.
+// True when the player counts are scoped by a date window (activity mode or a Reg/FTD
+// filter). In that case the unique counts live only in the KPI cards, not in the
+// per-period breakdown/trend, so those never contradict the headline numbers.
+function countsDateScoped(){var r=getRange('reg'),f=getRange('ftd');return activeActivityMode()||!!(r.from||r.to||f.from||f.to);}
+function playerCounts(){
+  var actR=getRange('act'),regR=getRange('reg'),ftdR=getRange('ftd');
+  var regWin=(regR.from||regR.to)?regR:actR;
+  var ftdWin=(ftdR.from||ftdR.to)?ftdR:actR;
+  var reg=0,ftd=0,ftdSum=0,bonusSum=0;
+  userRows.forEach(function(u){
+    if(selectedStates.indexOf(u.state)<0) return;
+    if(selectedPromos.indexOf(u.promo)<0) return;
+    if((!regWin.from||u.regDate>=regWin.from)&&(!regWin.to||u.regDate<=regWin.to)){ reg++; bonusSum+=u.bonus; }
+    if(u.ftdDate&&(!ftdWin.from||u.ftdDate>=ftdWin.from)&&(!ftdWin.to||u.ftdDate<=ftdWin.to)){ ftd++; ftdSum+=u.ftdAmount; }
+  });
+  return {registrations:reg,ftds:ftd,ftdRate:reg?ftd/reg:null,avgFtd:ftd?ftdSum/ftd:null,bonus:bonusSum,bonusPerUser:reg?bonusSum/reg:null};
+}
+
+/* ============ GAMING VIEW ============ */
+function renderGaming(){
+  if(!document.getElementById('overview')) return;
+  if(!userRows.length) return;
+  var actMode=activeActivityMode();
+  var rows, agg, breakdownDateOf, countLabel;
+  if(actMode){
+    rows=filteredActivity(); agg=aggregateActivity;
+    breakdownDateOf=function(x){return x.activityDate;};
+    countLabel=rows.length+' activity rows (Cohort Activity)';
+  } else {
+    var regR=getRange('reg'),ftdR=getRange('ftd'),actR=getRange('act');
+    rows=userRows.filter(function(u){
+      if(regR.from&&u.regDate<regR.from) return false;
+      if(regR.to&&u.regDate>regR.to) return false;
+      if(ftdR.from||ftdR.to){ if(!u.ftdDate) return false; if(ftdR.from&&u.ftdDate<ftdR.from) return false; if(ftdR.to&&u.ftdDate>ftdR.to) return false; }
+      if(actR.from||actR.to){ if(!u.activityDate) return false; if(actR.from&&u.activityDate<actR.from) return false; if(actR.to&&u.activityDate>actR.to) return false; }
+      if(selectedStates.indexOf(u.state)<0) return false;
+      if(selectedPromos.indexOf(u.promo)<0) return false;
+      return true;
+    });
+    agg=aggregate;
+    breakdownDateOf=function(u){return (breakdownDim==='reg')?u.regDate:u.ftdDate;};
+    countLabel=rows.length+' users';
+  }
+  filtered=rows;
+  var overall=agg(rows);
+
+  // summary
+  var stTxt=(selectedStates.length===allStates.length)?'all':(selectedStates.length?selectedStates.join(', '):'none');
+  var spTxt=(selectedSports.length===allSports.length)?'all':(selectedSports.length?selectedSports.join(', '):'none');
+  var srcNote=actMode?' <span style="color:var(--accent)">Handle/GGR/NGR/Entries reflect dated activity in the selected window.</span>':'';
+  document.getElementById('filterSummary').innerHTML='Activity <strong>'+rangeText('act')+'</strong>, FTD <strong>'+rangeText('ftd')+'</strong>, registered <strong>'+rangeText('reg')+'</strong>, state: <strong>'+stTxt+'</strong>, sport: <strong>'+spTxt+'</strong>. '+countLabel+'.'+srcNote;
+
+  var srcNarrowed=allSources.length&&selectedSources.length<allSources.length;
+  var sun=document.getElementById('sourceUnavailNote');
+  if(sun){
+    sun.style.display=srcNarrowed?'block':'none';
+    if(srcNarrowed) sun.innerHTML='<strong>Source is unavailable at the gaming-metric level.</strong> Handle, GGR, NGR, Entries and player counts come from the Users and Cohort Activity tables, which carry no media source \u2014 so the Source filter can\u2019t split these numbers. It only scopes Paid Spend and the Marketing cards here (and the full breakdown lives on the Paid Marketing tab).';
+  }
+
+  // Overview grouped: Gaming / Players / Marketing
+  var oh='';
+  var haveMkt=haveAnyPaid()||(DATA.appsflyer&&DATA.appsflyer.length);
+  var mo=haveMkt?marketingOverview():{spend:0,installs:0};
+  var pc=playerCounts();
+  pc.entriesPerUser=pc.registrations?(overall.entries||0)/pc.registrations:null;
+  var gaming=METRIC_DEFS.filter(function(m){return GAMING_KEYS.indexOf(m.k)>=0&&selectedMetrics[m.k];});
+  if(gaming.length) oh+='<div class="section-title">Gaming</div><div class="kpi-grid">'+gaming.map(function(m){var v=(m.k==='bonus'||m.k==='bonusPerUser')?pc[m.k]:overall[m.k];return kcard(m.l,fmtMetric(m.k,v));}).join('')+'</div>';
+  var players=METRIC_DEFS.filter(function(m){return PLAYER_KEYS.indexOf(m.k)>=0&&selectedMetrics[m.k];}).map(function(m){return kcard(m.l,fmtMetric(m.k,pc[m.k]));});
+  var ga=(DATA.ga4||[]).filter(function(x){return inR(x.date,getRange('act'));}).sort(function(a,b){return a.date<b.date?-1:1;});
+  if(ga.length){var avg=ga.reduce(function(s,x){return s+x.dau;},0)/ga.length;players.push(kcard('Avg DAU',fmt(avg)));}
+  if(haveMkt) players.push(kcard('Installs',fmt(mo.installs)));
+  if(players.length) oh+='<div class="section-title">Players</div><div class="kpi-grid">'+players.join('')+'</div>';
+  if(haveMkt){
+    var cpi=mo.installs?mo.spend/mo.installs:null, cpreg=pc.registrations?mo.spend/pc.registrations:null, cpftd=pc.ftds?mo.spend/pc.ftds:null;
+    oh+='<div class="section-title">Marketing</div><div class="kpi-grid">'+[
+      kcard('Paid Spend',fmtM(mo.spend),'Meta + Apple + Affiliate + Influencer'),
+      kcard('Blended CPI',money2(cpi),'spend / installs'),
+      kcard('Blended CPReg',money2(cpreg),'spend / registrations'),
+      kcard('Blended CPFTD',money2(cpftd),'spend / FTDs')
+    ].join('')+'</div>';
+  }
+  document.getElementById('overview').innerHTML=oh;
+
+  // Trends. Metric mode = per-period metrics (installs from AppsFlyer, Reg/FTD/Bonus from
+  // Users tab); Sport-mix mode = Handle stacked by sport from the Cohort tab.
+  if(trendMode==='sport'){
+    renderTrendSport();
+  } else {
+    var trGroups={};
+    rows.forEach(function(r){var ds=breakdownDateOf(r);if(!ds)return;var k=periodKey(ds,trendPeriod);(trGroups[k]=trGroups[k]||[]).push(r);});
+    var trActR=getRange('act');
+    var instByPeriod={}, spendByPeriod={};
+    var selSrc={}; selectedSources.forEach(function(s){selSrc[s]=1;});
+    var psTr=paidSourceSet();
+    acqRows().forEach(function(x){ if(!x.date||!selSrc[x.source]||!inR(x.date,trActR)) return; var k=periodKey(x.date,trendPeriod); instByPeriod[k]=(instByPeriod[k]||0)+x.installs; if(psTr[x.source]) spendByPeriod[k]=(spendByPeriod[k]||0)+x.spend; });
+    var pmTr=playerTableMaps(trendPeriod,true);
+    var trKeySet={}; Object.keys(trGroups).forEach(function(k){trKeySet[k]=1;}); Object.keys(instByPeriod).forEach(function(k){trKeySet[k]=1;}); Object.keys(spendByPeriod).forEach(function(k){trKeySet[k]=1;});
+    var trKeys=Object.keys(trKeySet).sort();
+    renderTrend(trKeys.map(function(k){var v=agg(trGroups[k]||[]); v.installs=instByPeriod[k]||0; v.spend=spendByPeriod[k]||0; if(pmTr){v.registrations=pmTr.reg[k]||0;v.ftds=pmTr.ftd[k]||0;v.bonus=pmTr.bonus[k]||0;} return {key:k,vals:v};}));
+  }
+
+  // Donut (dim + metric). Source has no gaming-level attribution, so "by Source"
+  // pulls installs / registrations / FTDs from AppsFlyer (the only source-tagged data).
+  document.getElementById('srcChartTitle').textContent=(DONUT_METRICS.find(function(m){return m[0]===srcMetric;})[1])+' by '+dimLabel(srcDim);
+  if(srcDim==='source'){
+    var afMap={ftds:'deposits',registrations:'signups',installs:'installs'};
+    var f=afMap[srcMetric];
+    if(f){
+      var actR2=getRange('act'), selSrc2={}; selectedSources.forEach(function(s){selSrc2[s]=1;});
+      var bySrc={};
+      acqRows().forEach(function(x){ if(!selSrc2[x.source]||!inR(x.date,actR2)) return; (bySrc[x.source]=bySrc[x.source]||{ftds:0,registrations:0,installs:0}); bySrc[x.source].ftds+=x.deposits||0; bySrc[x.source].registrations+=x.signups||0; bySrc[x.source].installs+=x.installs||0; });
+      renderSrc(Object.keys(bySrc).map(function(s){var v=bySrc[s];return {dim:s,vals:{ftds:v.ftds,registrations:v.registrations,installs:v.installs,handle:0,ggr:0,ngr:0,entries:0}};}));
+    } else {
+      renderSrc([]);
+      document.getElementById('srcChartTitle').textContent=(DONUT_METRICS.find(function(m){return m[0]===srcMetric;})[1])+' by Source \u2014 not tracked per source';
+    }
+  } else if(srcDim==='sport'){
+    // Sport only exists on the Cohort Activity table, so read it there regardless of mode.
+    var crows=(DATA.cohort&&DATA.cohort.length)?filteredActivity():[];
+    var sg={};
+    crows.forEach(function(x){var k=x.sport||'(none)';(sg[k]=sg[k]||[]).push(x);});
+    renderSrc(Object.keys(sg).map(function(k){return {dim:k,vals:aggregateActivity(sg[k])};}));
+  } else {
+    var dGroups={};
+    rows.forEach(function(r){var k=r.state;(dGroups[k]=dGroups[k]||[]).push(r);});
+    renderSrc(Object.keys(dGroups).map(function(k){return {dim:k,vals:agg(dGroups[k])};}));
+  }
+  renderFunnel();
+
+  // Consolidated breakdown table
+  renderTable(rows,agg,actMode,breakdownDateOf);
+  // Cohort LTV, State, and Promo performance tables (lifetime, from Users tab)
+  renderUserGroupTable('stateTable',function(u){return u.state;},'State','handle','act',stateShowAll?0:5,null,true,false);
+  renderDow(rows,actMode,breakdownDateOf);
+  renderEntryDist(rows,actMode);
+}
+// Entry-amount distribution. No per-entry stake exists in the data, so each row (a user in the
+// non-activity view, or a user×day×sport row in activity mode) is bucketed by its per-entry
+// average handle÷entries; the row's entries land in that tier and the user is counted once per tier.
+function entryTier(a){ if(a<25) return 0; if(a<50) return 1; if(a<100) return 2; return 3; }
+function renderEntryDist(rows,actMode){
+  if(!document.getElementById('entryDistChart')) return;
+  var labels=['$0–$24','$25–$49','$50–$99','$99+'];
+  var entries=[0,0,0,0], userSets=[{},{},{},{}], rowCt=[0,0,0,0];
+  rows.forEach(function(x){
+    var e=x.entries||0; if(e<=0) return;
+    var t=entryTier((x.handle||0)/e);
+    entries[t]+=e; rowCt[t]++;
+    if(x.id) userSets[t][x.id]=1;
+  });
+  var users=userSets.map(function(s){return Object.keys(s).length;});
+  var totE=entries.reduce(function(a,b){return a+b;},0);
+  var totU=Object.keys((function(){var all={};userSets.forEach(function(s){Object.keys(s).forEach(function(k){all[k]=1;});});return all;})()).length;
+  // table
+  document.getElementById('entryDistHead').innerHTML='<th>Entry amount</th><th class="num">Users</th><th class="num">Total entries</th><th class="num">% of entries</th>';
+  document.getElementById('entryDistBody').innerHTML=labels.map(function(l,i){
+    return '<tr><td>'+l+'</td><td class="num">'+fmt(users[i])+'</td><td class="num">'+fmt(entries[i])+'</td><td class="num">'+(totE?(entries[i]/totE*100).toFixed(1)+'%':'--')+'</td></tr>';
+  }).join('');
+  document.getElementById('entryDistTotal').innerHTML='<tr><td>Total</td><td class="num">'+fmt(totU)+'</td><td class="num">'+fmt(totE)+'</td><td class="num">100.0%</td></tr>';
+  document.getElementById('entryDistNote').innerHTML='Each '+(actMode?'activity row (user×day×sport)':'user')+' is bucketed by its average entry (handle ÷ entries); the row’s entries go into that tier and the user is counted once per tier, so a user can appear in more than one tier (Total Users is distinct overall). Tiers: $0–$24, $25–$49, $50–$99, $99+ ($100 or more). Set the Activity Date filter (e.g. June) to scope the window.';
+  // chart: Users as bars (left axis), Total entries as a line (right axis)
+  if(entryDistChart)entryDistChart.destroy();
+  var ce=document.getElementById('entryDistChart'); if(!ce) return;
+  entryDistChart=new Chart(ce,{type:'bar',data:{labels:labels,datasets:[
+    {type:'bar',label:'Users',data:users,backgroundColor:'#17F6A4bb',borderRadius:4,yAxisID:'y',order:2},
+    {type:'line',label:'Total entries',data:entries,borderColor:'#8b5cf6',backgroundColor:'#8b5cf6',pointRadius:3,pointHoverRadius:5,borderWidth:2,tension:.3,fill:false,yAxisID:'ye',order:1}
+  ]},options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#94a3b8',boxWidth:12}},tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+Math.round(c.raw).toLocaleString();}}}},scales:{x:{ticks:{color:'#64748b'},grid:{color:'rgba(42,45,58,.5)'}},y:{position:'left',beginAtZero:true,title:{display:true,text:'Users',color:'#64748b'},ticks:{color:'#64748b'},grid:{color:'rgba(42,45,58,.5)'}},ye:{position:'right',beginAtZero:true,title:{display:true,text:'Entries',color:'#94a3b8'},ticks:{color:'#94a3b8'},grid:{drawOnChartArea:false}}}}});
+}
+function dowOf(ds){var d=new Date(ds+'T00:00:00'); return isNaN(d.getTime())?null:d.getDay();} // 0=Sun..6=Sat
+function renderDow(rows,actMode,breakdownDateOf){
+  if(!document.getElementById('dowChart')) return;
+  var order=[1,2,3,4,5,6,0], labels=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var reg=[0,0,0,0,0,0,0], ftd=[0,0,0,0,0,0,0], handle=[0,0,0,0,0,0,0], ngr=[0,0,0,0,0,0,0];
+  // Registrations & FTDs from the Users tab, by the weekday of their own date (reg / first-deposit).
+  var regR=getRange('reg'), ftdR=getRange('ftd'), actR=getRange('act');
+  var regWin=(regR.from||regR.to)?regR:actR, ftdWin=(ftdR.from||ftdR.to)?ftdR:actR;
+  userRows.forEach(function(u){
+    if(selectedStates.indexOf(u.state)<0)return; if(selectedPromos.indexOf(u.promo)<0)return;
+    if(u.regDate&&(!regWin.from||u.regDate>=regWin.from)&&(!regWin.to||u.regDate<=regWin.to)){ var d=dowOf(u.regDate); if(d!=null)reg[d]++; }
+    if(u.ftdDate&&(!ftdWin.from||u.ftdDate>=ftdWin.from)&&(!ftdWin.to||u.ftdDate<=ftdWin.to)){ var d2=dowOf(u.ftdDate); if(d2!=null)ftd[d2]++; }
+  });
+  // Handle & NGR from the gaming rows, by weekday of the activity date (activity mode) or reg/FTD date otherwise.
+  rows.forEach(function(r){ var ds=breakdownDateOf(r); if(!ds)return; var d=dowOf(ds); if(d==null)return; handle[d]+=r.handle; ngr[d]+=r.ngr; });
+  // Table
+  var neg=function(v){return v<0?'<span class="neg">'+fmtM(v)+'</span>':fmtM(v);};
+  document.getElementById('dowHead').innerHTML='<th>Day</th><th class="num">Registrations</th><th class="num">FTDs</th><th class="num">Handle</th><th class="num">NGR</th>';
+  var tReg=0,tFtd=0,tH=0,tN=0;
+  document.getElementById('dowBody').innerHTML=order.map(function(d,i){
+    tReg+=reg[d];tFtd+=ftd[d];tH+=handle[d];tN+=ngr[d];
+    return '<tr><td>'+labels[i]+'</td><td class="num">'+fmt(reg[d])+'</td><td class="num">'+fmt(ftd[d])+'</td><td class="num">'+fmtM(handle[d])+'</td><td class="num">'+neg(ngr[d])+'</td></tr>';
+  }).join('');
+  document.getElementById('dowTotal').innerHTML='<tr><td>Total</td><td class="num">'+fmt(tReg)+'</td><td class="num">'+fmt(tFtd)+'</td><td class="num">'+fmtM(tH)+'</td><td class="num">'+neg(tN)+'</td></tr>';
+  document.getElementById('dowNote').innerHTML='Registrations by registration weekday and FTDs by first-deposit weekday (Users tab). Handle &amp; NGR by '+(actMode?'activity':(breakdownDim==='ftd'?'first-deposit':'registration'))+' weekday.';
+  // Chart: Handle & NGR as bars ($ left axis), Registrations & FTDs as lines (count right axis)
+  if(dowChart)dowChart.destroy();
+  var ce=document.getElementById('dowChart'); if(!ce) return;
+  dowChart=new Chart(ce,{type:'bar',data:{labels:labels,datasets:[
+    {type:'bar',label:'Handle',data:order.map(function(d){return handle[d];}),backgroundColor:'#17F6A4bb',borderRadius:4,yAxisID:'y',order:2},
+    {type:'bar',label:'NGR',data:order.map(function(d){return ngr[d];}),backgroundColor:'#f59e0bbb',borderRadius:4,yAxisID:'y',order:2},
+    {type:'line',label:'Registrations',data:order.map(function(d){return reg[d];}),borderColor:'#8b5cf6',backgroundColor:'#8b5cf6',pointRadius:3,pointHoverRadius:5,borderWidth:2,tension:.3,fill:false,yAxisID:'yc',order:1},
+    {type:'line',label:'FTDs',data:order.map(function(d){return ftd[d];}),borderColor:'#ec4899',backgroundColor:'#ec4899',pointRadius:3,pointHoverRadius:5,borderWidth:2,tension:.3,fill:false,yAxisID:'yc',order:1}
+  ]},options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#94a3b8',boxWidth:12}},tooltip:{callbacks:{label:function(c){var m=(c.dataset.label==='Handle'||c.dataset.label==='NGR');return ' '+c.dataset.label+': '+(m?fmtM(c.raw):Math.round(c.raw).toLocaleString());}}}},scales:{x:{ticks:{color:'#64748b'},grid:{color:'rgba(42,45,58,.5)'}},y:{position:'left',ticks:{color:'#64748b',callback:function(v){return '$'+(Math.abs(v)>=1000?(v/1000).toFixed(0)+'k':v);}},grid:{color:'rgba(42,45,58,.5)'}},yc:{position:'right',beginAtZero:true,ticks:{color:'#94a3b8'},grid:{drawOnChartArea:false}}}}});
+}
+function playerTableMaps(bb,isPeriod){
+  var canDim=(bb==='state'||bb==='promo');
+  if(!isPeriod && !canDim) return null; // sport has no user-level attribution
+  var reg={},ftd={},bonus={},ftdSum={};
+  userRows.forEach(function(u){
+    if(selectedStates.indexOf(u.state)<0) return;
+    if(selectedPromos.indexOf(u.promo)<0) return;
+    var rKey=isPeriod?(u.regDate?periodKey(u.regDate,bb):null):(bb==='state'?u.state:u.promo);
+    var fKey=isPeriod?(u.ftdDate?periodKey(u.ftdDate,bb):null):(bb==='state'?u.state:u.promo);
+    if(rKey!==null){ reg[rKey]=(reg[rKey]||0)+1; bonus[rKey]=(bonus[rKey]||0)+u.bonus; }
+    if(u.ftdDate&&fKey!==null){ ftd[fKey]=(ftd[fKey]||0)+1; ftdSum[fKey]=(ftdSum[fKey]||0)+u.ftdAmount; }
+  });
+  return {reg:reg,ftd:ftd,bonus:bonus,ftdSum:ftdSum};
+}
+function renderTable(rows,agg,actMode,breakdownDateOf){
+  var bb=breakdownBy;
+  var cols=METRIC_DEFS.filter(function(m){return selectedMetrics[m.k];});
+  var overall=agg(rows);
+  var isPeriod=(bb==='month'||bb==='week'||bb==='day');
+  document.getElementById('dimToggle').style.display=(isPeriod&&!actMode)?'flex':'none';
+  document.getElementById('bdPct').parentNode.style.display=isPeriod?'flex':'none';
+  var groups={};
+  if(isPeriod){
+    rows.forEach(function(r){var ds=breakdownDateOf(r);if(!ds)return;var k=periodKey(ds,bb);(groups[k]=groups[k]||[]).push(r);});
+  } else {
+    rows.forEach(function(r){var k=(bb==='state'?r.state:(bb==='sport'?(r.sport||'(none)'):r.promo));(groups[k]=groups[k]||[]).push(r);});
+  }
+  // Player metrics (registrations, FTDs, bonus + derived) always come from the unique
+  // Users tab, keyed by each metric's own date/dimension.
+  var pm=playerTableMaps(bb,isPeriod);
+  function applyPM(vals,key){
+    if(!pm){ ['registrations','ftds','ftdRate','avgFtd','bonus','bonusPerUser','entriesPerUser'].forEach(function(k){vals[k]=null;}); return; }
+    var r=pm.reg[key]||0, f=pm.ftd[key]||0, b=pm.bonus[key]||0;
+    vals.registrations=r; vals.ftds=f; vals.ftdRate=r?f/r:null; vals.avgFtd=f?(pm.ftdSum[key]||0)/f:null; vals.bonus=b; vals.bonusPerUser=r?b/r:null; vals.entriesPerUser=r?(vals.entries||0)/r:null;
+  }
+  var keys=Object.keys(groups),outRows;
+  if(isPeriod){ keys.sort(); outRows=keys.map(function(k){return {label:periodLabel(k,bb),vals:agg(groups[k]),_key:k};}); }
+  else { outRows=keys.map(function(k){return {label:k,vals:agg(groups[k]),_key:k};}); }
+  outRows.forEach(function(o){applyPM(o.vals,o._key);});
+  if(!isPeriod){
+    outRows.sort(function(a,b){if(sortKey==='dim')return sortDir*a.label.localeCompare(b.label);var av=a.vals[sortKey],bv=b.vals[sortKey];if(av===null)av=-Infinity;if(bv===null)bv=-Infinity;return sortDir*(av-bv);});
+  }
+  // Total row: authoritative unique counts from the Users tab
+  var pc=playerCounts();
+  overall.registrations=pc.registrations; overall.ftds=pc.ftds; overall.ftdRate=pc.ftdRate; overall.avgFtd=pc.avgFtd; overall.bonus=pc.bonus; overall.bonusPerUser=pc.bonusPerUser; overall.entriesPerUser=pc.registrations?(overall.entries||0)/pc.registrations:null;
+  var first=isPeriod?({month:'Month',week:'Week',day:'Day'}[bb]):dimLabel(bb);
+  if(actMode&&isPeriod)first='Activity '+first;
+  var showPct=isPeriod&&document.getElementById('bdPct').checked;
+  // Paid spend by period bucket (paid sources in the selected Source list, within the Activity window).
+  // Spend is date/source based, so it only splits by period — dimension breakdowns show it only in the total.
+  var psSp=paidSourceSet(), selSp={}; selectedSources.forEach(function(s){selSp[s]=1;});
+  var spActR=getRange('act'), spendMap={}, totalSpend=0;
+  acqRows().forEach(function(x){ if(!x.date||!psSp[x.source]||!selSp[x.source]||!inR(x.date,spActR)) return; totalSpend+=x.spend; if(isPeriod){var sk=periodKey(x.date,bb); spendMap[sk]=(spendMap[sk]||0)+x.spend;} });
+  // Place the Spend column right after FTD Rate (or at the end if FTD Rate isn't shown).
+  var ftdPos=-1; for(var ci=0;ci<cols.length;ci++){ if(cols[ci].k==='ftdRate'){ftdPos=ci;break;} }
+  function insSpend(arr,cell){ if(ftdPos>=0) arr.splice(ftdPos+1,0,cell); else arr.push(cell); return arr; }
+  var headThs=cols.map(function(m){return '<th class="num"'+(isPeriod?'':' onclick="sortBy(\''+m.k+'\')"')+'>'+m.l+'</th>';});
+  insSpend(headThs,'<th class="num">Spend</th>');
+  document.getElementById('bkHead').innerHTML='<th'+(isPeriod?'':' onclick="sortBy(\'dim\')"')+'>'+first+'</th>'+headThs.join('');
+  document.getElementById('bkBody').innerHTML=outRows.map(function(o,i){
+    var prev=(isPeriod&&i>0)?outRows[i-1]:null;
+    var metricCells=cols.map(function(m){
+      var val=o.vals[m.k],base=fmtMetric(m.k,val),delta='';
+      if(showPct&&prev&&m.type!=='pct'){var pv=prev.vals[m.k];if(pv!==null&&pv>0&&val!==null){var c=Math.round((val-pv)/pv*100);var cls=c>0?'chg-up':(c<0?'chg-dn':'');var ar=c>0?'&#9650;':(c<0?'&#9660;':'');delta=c===0?'':'<span class="'+cls+'">'+ar+' '+Math.abs(c)+'%</span>';}}
+      return showPct?('<td class="num"><div>'+base+'</div>'+(delta?'<div class="cell-delta-sub">'+delta+'</div>':'')+'</td>'):('<td class="num">'+base+'</td>');
+    });
+    var spendCell;
+    if(isPeriod){
+      var sv=spendMap[o._key]||0, sd='';
+      if(showPct&&prev){var pvs=spendMap[prev._key]||0;if(pvs>0){var cs=Math.round((sv-pvs)/pvs*100);var clss=cs>0?'chg-up':(cs<0?'chg-dn':'');var ars=cs>0?'&#9650;':(cs<0?'&#9660;':'');sd=cs===0?'':'<span class="'+clss+'">'+ars+' '+Math.abs(cs)+'%</span>';}}
+      spendCell=showPct?('<td class="num"><div>'+fmtM(sv)+'</div>'+(sd?'<div class="cell-delta-sub">'+sd+'</div>':'')+'</td>'):('<td class="num">'+fmtM(sv)+'</td>');
+    } else { spendCell='<td class="num">--</td>'; }
+    insSpend(metricCells,spendCell);
+    return '<tr><td>'+o.label+'</td>'+metricCells.join('')+'</tr>';
+  }).join('');
+  var totTds=cols.map(function(m){return '<td class="num">'+fmtMetric(m.k,overall[m.k])+'</td>';});
+  insSpend(totTds,'<td class="num">'+fmtM(totalSpend)+'</td>');
+  document.getElementById('bkTotal').innerHTML='<tr><td>Total</td>'+totTds.join('')+'</tr>';
+}
+function renderTrend(pRows){
+  var el=document.getElementById('trendChart'); if(!el) return;
+  if(trendChart) trendChart.destroy();
+  var active=CHART_METRICS.filter(function(m){return trendMetrics[m.k];});
+  // Spend gets its own right-hand $ axis so it isn't dwarfed by Handle; other money metrics share the
+  // left axis, counts share a second right axis.
+  var leftMon=active.filter(function(m){return m.money&&m.k!=='spend';});
+  var spendActive=active.some(function(m){return m.k==='spend';});
+  var countMon=active.filter(function(m){return !m.money;});
+  var usedMoney=leftMon.length>0, usedCount=countMon.length>0;
+  var nAxes=(usedMoney?1:0)+(spendActive?1:0)+(usedCount?1:0), showTitles=nAxes>=2;
+  var moneyFmt=function(v){return '$'+(Math.abs(v)>=1000?(v/1000).toFixed(0)+'k':v);};
+  var datasets=active.map(function(m){
+    if(m.k==='spend') return {type:'bar',label:mLabel(m.k),data:pRows.map(function(o){return o.vals[m.k]||0;}),backgroundColor:m.color+'bb',borderRadius:4,yAxisID:'ySpend',order:2};
+    if(m.money) return {type:'bar',label:mLabel(m.k),data:pRows.map(function(o){return o.vals[m.k]||0;}),backgroundColor:m.color+'bb',borderRadius:4,yAxisID:'y',order:3};
+    return {type:'line',label:mLabel(m.k),data:pRows.map(function(o){return o.vals[m.k]||0;}),borderColor:m.color,backgroundColor:m.color,pointBackgroundColor:m.color,pointRadius:3,pointHoverRadius:5,borderWidth:2,tension:.3,fill:false,yAxisID:'yCount',order:1};
+  });
+  trendChart=new Chart(el,{type:'bar',data:{labels:pRows.map(function(o){return periodLabel(o.key,trendPeriod);}),datasets:datasets},
+    options:{responsive:true,interaction:{mode:'nearest',intersect:true},plugins:{legend:{labels:{color:'#94a3b8',boxWidth:12}},tooltip:{displayColors:true,callbacks:{label:function(c){var m=active[c.datasetIndex];var isM=m?m.money:false;return ' '+c.dataset.label+': '+(isM?'$':'')+Math.round(c.raw).toLocaleString();}}}},
+    scales:{x:{ticks:{color:'#64748b',maxRotation:45,maxTicksLimit:16},grid:{color:'rgba(42,45,58,.5)'}},
+      y:{display:usedMoney,position:'left',title:{display:showTitles&&usedMoney,text:leftMon.map(function(m){return mLabel(m.k);}).join(' / ')+' ($)',color:'#64748b'},ticks:{color:'#64748b',callback:moneyFmt},grid:{color:'rgba(42,45,58,.5)'}},
+      ySpend:{display:spendActive,position:'right',beginAtZero:true,title:{display:showTitles&&spendActive,text:'Spend ($)',color:'#ff0050'},ticks:{color:'#ff6b93',callback:moneyFmt},grid:{drawOnChartArea:false}},
+      yCount:{display:usedCount,position:'right',beginAtZero:true,title:{display:showTitles&&usedCount,text:countMon.map(function(m){return mLabel(m.k);}).join(' / '),color:'#94a3b8'},ticks:{color:'#94a3b8'},grid:{drawOnChartArea:false}}}}});
+}
+var donutLabelPlugin={
+  id:'donutLabels',
+  afterDraw:function(chart){
+    var ds=chart.data.datasets[0]; if(!ds) return;
+    var meta=chart.getDatasetMeta(0); if(!meta||!meta.data) return;
+    var total=ds.data.reduce(function(a,b){return a+(b||0);},0); if(!total) return;
+    var ctx=chart.ctx, labels=chart.data.labels||[];
+    var money=!!(chart.config.options&&chart.config.options.donutMoney);
+    meta.data.forEach(function(arc,i){
+      var val=ds.data[i]||0; if(val/total<0.09) return; // only large slices; small ones stay in the legend
+      var ang=(arc.startAngle+arc.endAngle)/2, rad=(arc.innerRadius+arc.outerRadius)/2;
+      var x=arc.x+Math.cos(ang)*rad, y=arc.y+Math.sin(ang)*rad;
+      ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.55)';
+      ctx.font='700 10px Inter,system-ui,sans-serif';
+      var lab=(labels[i]||'').toString();
+      ctx.strokeText(lab,x,y-5); ctx.fillStyle='#fff'; ctx.fillText(lab,x,y-5);
+      ctx.font='10px Inter,system-ui,sans-serif';
+      var vt=(money?'$':'')+Math.round(val).toLocaleString();
+      ctx.strokeText(vt,x,y+6); ctx.fillStyle='#fff'; ctx.fillText(vt,x,y+6);
+      ctx.restore();
+    });
+  }
+};
+function renderTrendSport(){
+  var el=document.getElementById('trendChart'); if(!el) return;
+  if(trendChart) trendChart.destroy();
+  var crows=(DATA.cohort&&DATA.cohort.length)?filteredActivity():[];
+  var byPS={}, sportTot={};
+  crows.forEach(function(x){var k=periodKey(x.activityDate,trendPeriod); if(!k)return; var sp=x.sport||'(none)'; (byPS[k]=byPS[k]||{}); byPS[k][sp]=(byPS[k][sp]||0)+x.handle; sportTot[sp]=(sportTot[sp]||0)+x.handle;});
+  var pkeys=Object.keys(byPS).sort();
+  var sports=Object.keys(sportTot).sort(function(a,b){return sportTot[b]-sportTot[a];});
+  var palette=['#17F6A4','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#60a5fa','#ff0050','#a3aaae','#22d3ee','#f472b6','#fbbf24','#4ade80'];
+  var datasets=sports.map(function(sp,i){return {label:sp,data:pkeys.map(function(k){return byPS[k][sp]||0;}),backgroundColor:palette[i%palette.length],stack:'s',borderWidth:0};});
+  trendChart=new Chart(el,{type:'bar',data:{labels:pkeys.map(function(k){return periodLabel(k,trendPeriod);}),datasets:datasets},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#94a3b8',boxWidth:12}},tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': $'+Math.round(c.raw).toLocaleString();}}}},
+    scales:{x:{stacked:true,ticks:{color:'#64748b',maxRotation:45,maxTicksLimit:16},grid:{color:'rgba(42,45,58,.5)'}},y:{stacked:true,ticks:{color:'#64748b',callback:function(v){return '$'+(Math.abs(v)>=1000?(v/1000).toFixed(0)+'k':v);}},grid:{color:'rgba(42,45,58,.5)'}}}}});
+}
+function setTrendMode(m,btn){trendMode=m;['tm_metrics','tm_sport'].forEach(function(id){var e=document.getElementById(id);if(e)e.classList.remove('active');});btn.classList.add('active');var ch=document.getElementById('trendChips');if(ch)ch.style.display=(m==='sport'?'none':'');render();}
+
+/* ===== Users-tab group tables (cohort LTV / state / promo) ===== */
+var stateShowAll=false;
+function toggleStateAll(){stateShowAll=!stateShowAll;render();}
+function ugAgg(keyFn,rangeKey,promoSel){
+  var pSel=promoSel||selectedPromos;
+  var actR=getRange(rangeKey||'act');
+  var g={};
+  userRows.forEach(function(u){
+    if(selectedStates.indexOf(u.state)<0)return; if(pSel.indexOf(u.promo)<0)return;
+    if(actR.from&&(!u.regDate||u.regDate<actR.from))return;
+    if(actR.to&&(!u.regDate||u.regDate>actR.to))return;
+    var k=keyFn(u); if(k==null||k==='')return;
+    var o=g[k]||(g[k]={u:0,f:0,h:0,n:0,b:0,e:0,reg:0,fa:0});
+    o.reg++; // Registrations = every user registered in the window (active or not)
+    if(!(u.handle>0||u.entries>0||u.ftdDate))return; // active players only for the metrics below
+    o.u++; if(u.ftdDate){o.f++; o.fa+=(u.ftdAmount||0);} o.h+=u.handle; o.n+=u.ngr; o.b+=u.bonus; o.e+=u.entries;
+  });
+  return g;
+}
+function ugRow(label,o,bold,regCol,promoMode){
+  // Promo table (promoMode) measures FTD conversion off registrations; other tables off active players.
+  var ftdPct=promoMode?(o.reg?(o.f/o.reg*100).toFixed(1)+'%':'--'):(o.u?(o.f/o.u*100).toFixed(1)+'%':'--');
+  var nPerU=o.u?o.n/o.u:null, entPerU=o.u?o.e/o.u:null, roi=o.b?o.n/o.b:null;
+  var avgFtd=o.f?(o.fa||0)/o.f:null, hPerU=o.u?o.h/o.u:null;
+  var neg=function(v){return v<0?'<span class="neg">'+fmtM(v)+'</span>':fmtM(v);};
+  var lead=regCol?('<td class="num">'+fmt(o.reg||0)+'</td>'):'';
+  var tail=promoMode?('<td class="num">'+(avgFtd==null?'--':fmtM(avgFtd))+'</td><td class="num">'+(hPerU==null?'--':fmtM(hPerU))+'</td>'):'';
+  return '<tr'+(bold?' style="font-weight:700"':'')+'><td>'+label+'</td>'+lead+
+    '<td class="num">'+fmt(o.u)+'</td>'+
+    '<td class="num">'+fmt(o.f)+'</td>'+
+    '<td class="num">'+ftdPct+'</td>'+
+    '<td class="num">'+fmtM(o.h)+'</td>'+
+    '<td class="num">'+neg(o.n)+'</td>'+
+    '<td class="num">'+(nPerU==null?'--':neg(nPerU))+'</td>'+
+    '<td class="num">'+fmtM(o.b)+'</td>'+
+    '<td class="num">'+(roi==null?'--':roi.toFixed(2)+'x')+'</td>'+
+    '<td class="num">'+(entPerU==null?'--':entPerU.toFixed(1))+'</td>'+tail+'</tr>';
+}
+function renderUserGroupTable(containerId,keyFn,firstLabel,sortMode,rangeKey,limit,promoSel,regCol,promoMode){
+  var el=document.getElementById(containerId); if(!el) return;
+  var g=ugAgg(keyFn,rangeKey,promoSel), keys=Object.keys(g);
+  // Non-promo tables keep their original behaviour of only listing groups with active players.
+  if(!promoMode) keys=keys.filter(function(k){return g[k].u>0;});
+  if(sortMode==='asc') keys.sort();
+  else if(sortMode==='handle') keys.sort(function(a,b){return g[b].h-g[a].h;});
+  else if(sortMode==='ftds') keys.sort(function(a,b){return g[b].f-g[a].f;});
+  else keys.sort(function(a,b){return g[b].n-g[a].n;});
+  var cols=['Active Players','FTDs','FTD %','Handle','NGR','NGR / User','Bonus','NGR / $ Bonus','Entries / User'];
+  if(regCol) cols=['Registrations'].concat(cols);
+  if(promoMode) cols=cols.concat(['Avg FTD','Handle / User']);
+  var head='<th>'+firstLabel+'</th>'+cols.map(function(c){return '<th class="num">'+c+'</th>';}).join('');
+  var t={u:0,f:0,h:0,n:0,b:0,e:0,reg:0,fa:0};
+  keys.forEach(function(k){var o=g[k];t.u+=o.u;t.f+=o.f;t.h+=o.h;t.n+=o.n;t.b+=o.b;t.e+=o.e;t.reg+=(o.reg||0);t.fa+=(o.fa||0);});
+  var shown=(limit&&keys.length>limit)?keys.slice(0,limit):keys;
+  var body=shown.map(function(k){var o=g[k];var disp=/^\d{4}-\d{2}$/.test(k)?(MONTHS[parseInt(k.slice(5,7))-1]+' '+k.slice(0,4)):k;return ugRow(disp,o,false,regCol,promoMode);}).join('');
+  var tbl='<div class="tbl-scroll"><table class="freeze-col"><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+ugRow('Total',t,true,regCol,promoMode)+'</tfoot></table></div>';
+  var more='';
+  if(limit&&keys.length>limit){ more='<div style="text-align:center;margin-top:10px"><button class="qbtn" onclick="toggleStateAll()">'+(stateShowAll?('Show top '+limit):('Show all '+keys.length))+'</button></div>'; }
+  var regNote=promoMode?'<div style="font-size:11px;color:#64748b;margin-top:8px">Registrations = unique players registered in the window under each code (Users tab). FTD % = FTDs ÷ Registrations.</div>':'';
+  el.innerHTML=tbl+more+regNote;
+}
+// New vs Returning by MONTH. New FTDs = first-time depositors that month (Users tab).
+// Handle/NGR split from the Cohort tab: New = players whose first deposit was that month,
+// Returning = players active that month who first-deposited earlier.
+function renderNewVsReturning(){
+  var el=document.getElementById('newVsReturning'); if(!el) return;
+  var w=getRange('eng');
+  var P=nvrPeriod; // day / week / month, tied to the master (Retention) date filter
+  var ftdBase={}; // period -> accurate FTD count (Users tab)
+  userRows.forEach(function(u){ if(u.ftdDate){ if(inR(u.ftdDate,w)){ var fk=periodKey(u.ftdDate,P); ftdBase[fk]=(ftdBase[fk]||0)+1; } } });
+  var crows=(DATA.cohort||[]).filter(function(x){return inR(x.activityDate,w);});
+  if(!crows.length && !Object.keys(ftdBase).length){ el.innerHTML='<div class="note" style="margin:0">No activity in the selected window.</div>'; return; }
+  var byM={};
+  crows.forEach(function(x){
+    if(!x.ftdDate) return;
+    var am=periodKey(x.activityDate,P), fm=periodKey(x.ftdDate,P);
+    if(fm>am) return;
+    var m=byM[am]||(byM[am]={nh:0,nn:0,rt:{ids:{},h:0,n:0}});
+    if(fm===am){ m.nh+=x.handle; m.nn+=x.ngr; }
+    else { m.rt.h+=x.handle; m.rt.n+=x.ngr; if(x.id)m.rt.ids[x.id]=1; }
+  });
+  function neg(v){return v<0?'<span class="neg">'+fmtM(v)+'</span>':fmtM(v);}
+  function pct(a,b){var t=a+b; if(!t) return '--'; return (a/t*100).toFixed(1)+'%';}
+  var periodSet={}; Object.keys(byM).forEach(function(k){periodSet[k]=1;}); Object.keys(ftdBase).forEach(function(k){periodSet[k]=1;});
+  var periods=Object.keys(periodSet).sort();
+  var tot={ftd:0,nh:0,nn:0,rt:{ids:{},h:0,n:0}};
+  function line(disp,newFtd,m,bold){
+    return '<tr'+(bold?' style="font-weight:700"':'')+'><td>'+disp+'</td>'+
+      '<td class="num">'+fmt(newFtd)+'</td>'+
+      '<td class="num">'+fmt(Object.keys(m.rt.ids).length)+'</td>'+
+      '<td class="num">'+fmtM(m.nh)+'</td>'+
+      '<td class="num">'+fmtM(m.rt.h)+'</td>'+
+      '<td class="num" style="color:var(--accent)">'+pct(m.nh,m.rt.h)+'</td>'+
+      '<td class="num">'+neg(m.nn)+'</td>'+
+      '<td class="num">'+neg(m.rt.n)+'</td></tr>';
+  }
+  var body=periods.map(function(am){
+    var m=byM[am]||{nh:0,nn:0,rt:{ids:{},h:0,n:0}};
+    var newFtd=ftdBase[am]||0;
+    tot.ftd+=newFtd; tot.nh+=m.nh; tot.nn+=m.nn; tot.rt.h+=m.rt.h; tot.rt.n+=m.rt.n;
+    Object.keys(m.rt.ids).forEach(function(id){tot.rt.ids[id]=1;});
+    return line(periodLabel(am,P),newFtd,m);
+  }).join('');
+  var firstCol=(P==='day'?'Date':(P==='week'?'Week':'Month'));
+  var head='<th>'+firstCol+'</th><th class="num">New FTDs</th><th class="num">Returning Players</th>'+
+    '<th class="num">New Handle</th><th class="num">Returning Handle</th><th class="num">% Handle New</th>'+
+    '<th class="num">New NGR</th><th class="num">Returning NGR</th>';
+  el.innerHTML='<div class="tbl-scroll"><table class="freeze-col"><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+line('Total',tot.ftd,tot,true)+'</tfoot></table></div>'+
+    '<div style="font-size:11px;color:#64748b;margin-top:8px">New FTDs = first-time depositors in that period (Users tab). % Handle New = share of the period\u2019s handle from those newly-acquired depositors. Returning = players active in the period who first-deposited earlier.</div>';
+}
+// FTD cohort retention triangle: rows = FTD month, columns = months since first deposit.
+// Cohort size (FTDs) is the accurate Users-tab count of first deposits that month;
+// M+N = distinct depositors from that cohort who placed a bet N months later (Cohort tab).
+function renderCohortRetention(){
+  var el=document.getElementById('cohortRetention'); if(!el) return;
+  var base={}; // ftdMonth -> accurate FTD count (Users tab)
+  userRows.forEach(function(u){ if(u.ftdDate){ var fm=u.ftdDate.slice(0,7); base[fm]=(base[fm]||0)+1; } });
+  if(!Object.keys(base).length){ el.innerHTML='<div class="note" style="margin:0">No first-deposit cohorts found.</div>'; return; }
+  function mIdx(s){return parseInt(s.slice(0,4))*12+parseInt(s.slice(5,7))-1;}
+  var off={}; // ftdMonth -> {n:{ids}}
+  (DATA.cohort||[]).forEach(function(x){
+    if(!x.ftdDate||!x.activityDate) return;
+    var fm=x.ftdDate.slice(0,7), o=mIdx(x.activityDate.slice(0,7))-mIdx(fm);
+    if(o>=1){ var m=off[fm]||(off[fm]={}); (m[o]=m[o]||{})[x.id]=1; }
+  });
+  var months=Object.keys(base).sort();
+  var maxOff=0; months.forEach(function(m){ if(off[m]) Object.keys(off[m]).forEach(function(o){if(+o>maxOff)maxOff=+o;}); });
+  maxOff=Math.min(maxOff,12); if(maxOff<1)maxOff=1;
+  var head='<th>FTD Cohort</th><th class="num">FTDs</th>';
+  for(var i=1;i<=maxOff;i++) head+='<th class="num">Month '+i+'</th>';
+  var body=months.map(function(m){
+    var size=base[m];
+    var disp=MONTHS[parseInt(m.slice(5,7))-1]+' '+m.slice(0,4);
+    var r='<tr><td>'+disp+'</td><td class="num" style="background:#c9a227;color:#0f1117;font-weight:700">'+fmt(size)+'</td>';
+    for(var i=1;i<=maxOff;i++){
+      var cell=(off[m]&&off[m][i])?Object.keys(off[m][i]).length:null;
+      if(cell===null){ r+='<td class="num" style="background:#141824"></td>'; }
+      else{ var rate=size?cell/size:0; var a=Math.max(0.06,Math.min(1,rate)); r+='<td class="num" style="background:rgba(23,246,164,'+a.toFixed(2)+');color:'+(rate>0.45?'#0f1117':'#e2e8f0')+'">'+fmt(cell)+'<div style="font-size:9px;opacity:.8">'+(rate*100).toFixed(0)+'%</div></td>'; }
+    }
+    return r+'</tr>';
+  }).join('');
+  el.innerHTML='<div class="tbl-scroll"><table class="freeze-col" style="min-width:640px">'+
+    '<thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>'+
+    '<div style="font-size:11px;color:#64748b;margin-top:8px">FTDs = first-time depositors that month (Users tab). Month N = how many of them placed a bet N months later, and the % of the cohort. Read a row left-to-right to see how a cohort decays.</div>';
+}
+function renderSrc(sRows){
+  var el=document.getElementById('srcChart'); if(!el) return;
+  var vv=function(r){return r.vals[srcMetric]||0;};
+  var pos=sRows.filter(function(r){return vv(r)>0;});
+  var total=pos.reduce(function(a,r){return a+vv(r);},0);
+  // roll sub-2% slices into a single "Other" so tiny slivers don't clutter the ring
+  var rows=[], other=0;
+  pos.slice().sort(function(a,b){return vv(b)-vv(a);}).forEach(function(r){ if(total&&vv(r)/total<0.02) other+=vv(r); else rows.push(r); });
+  if(other>0){ var o={}; o[srcMetric]=other; rows.push({dim:'Other',vals:o}); }
+  if(srcChart) srcChart.destroy();
+  var palette=['#17F6A4','#3b82f6','#ff0050','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#60a5fa','#a3aaae'];
+  srcChart=new Chart(el,{type:'doughnut',plugins:[donutLabelPlugin],data:{labels:rows.map(function(r){return r.dim;}),datasets:[{data:rows.map(function(r){return r.vals[srcMetric]||0;}),backgroundColor:rows.map(function(r,i){return r.dim==='Other'?'#3f4453':palette[i%palette.length];}),borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,donutMoney:mMoney(srcMetric),plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',boxWidth:10,padding:10}},tooltip:{callbacks:{label:function(c){return c.label+': '+(mMoney(srcMetric)?'$':'')+Math.round(c.raw).toLocaleString();}}}},cutout:'62%'}});
+}
+function renderFunnel(){
+  var wrap=document.getElementById('funnelWrap'); if(!wrap) return;
+  var r=getRange('act'), selSrc={}; selectedSources.forEach(function(s){selSrc[s]=1;});
+  var inst=0; acqRows().forEach(function(x){ if(selSrc[x.source]&&inR(x.date,r)) inst+=x.installs; });
+  var pc=playerCounts();  // registrations & FTDs from the unique Users tab
+  var stages=[{l:'Installs',v:inst,c:'#38bdf8'},{l:'Registrations',v:pc.registrations||0,c:'#f4c95d'},{l:'Deposits',v:pc.ftds||0,c:'#f472b6'}];
+  var maxV=Math.max(stages[0].v,stages[1].v,stages[2].v,1);
+  var W=360,cx=180,maxW=300,h=56,gap=26,pad=10;
+  var Ht=pad*2+stages.length*h+(stages.length-1)*gap;
+  // width never below ~34% so labels stay readable, still narrows visually
+  var widths=stages.map(function(s){return (0.34+0.66*(s.v/maxV))*maxW;});
+  var svg='<svg viewBox="0 0 '+W+' '+Ht+'" width="100%" style="max-width:440px;display:block;margin:0 auto;font-family:Inter,system-ui,sans-serif">';
+  stages.forEach(function(s,i){
+    var y=pad+i*(h+gap);
+    var topW=widths[i], botW=(i<stages.length-1?widths[i+1]:topW*0.6);
+    var pts=[[cx-topW/2,y],[cx+topW/2,y],[cx+botW/2,y+h],[cx-botW/2,y+h]].map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');
+    svg+='<polygon points="'+pts+'" fill="'+s.c+'"/>';
+    svg+='<text x="'+cx+'" y="'+(y+h/2-4)+'" text-anchor="middle" fill="#0f1117" font-size="13" font-weight="700">'+s.l+'</text>';
+    svg+='<text x="'+cx+'" y="'+(y+h/2+14)+'" text-anchor="middle" fill="#0f1117" font-size="12" font-weight="600">'+Math.round(s.v).toLocaleString()+'</text>';
+    if(i<stages.length-1){
+      var prevV=s.v, nextV=stages[i+1].v, conv=prevV?(nextV/prevV*100):0;
+      var gy=y+h+gap/2+4;
+      svg+='<text x="'+cx+'" y="'+gy+'" text-anchor="middle" fill="#64748b" font-size="11">\u25be '+conv.toFixed(1)+'%</text>';
+    }
+  });
+  svg+='</svg>';
+  wrap.innerHTML=svg;
+}
+
+/* ============ PAID MARKETING VIEW ============ */
+function renderPaid(){
+  var kg=document.getElementById('acqKpis'); if(!kg) return;
+  var r=getRange('acq');
+  var selSet={}; selectedSourcesPaid.forEach(function(s){selSet[s]=1;});
+  var rows=acqRows().filter(function(x){ return inR(x.date,r) && selSet[x.source]; });
+  var ps=paidSourceSet();
+  var spend=0,imp=0,clk=0,inst=0;
+  // Affiliate spend now comes from the Affiliate CPA tab, so skip the ad-export 'Affiliate' spend here.
+  rows.forEach(function(x){ if(ps[x.source] && x.source!=='Affiliate')spend+=x.spend; imp+=x.impressions;clk+=x.clicks;inst+=x.installs; });
+  var narrowed=(allSources.length>0 && selectedSourcesPaid.length<allSources.length);
+  var promoSetPaid={}; selectedPromosPaid.forEach(function(p){promoSetPaid[p]=1;});
+  var promoNarrowed=(allPromos.length>0 && selectedPromosPaid.length<allPromos.length);
+  // Affiliate CPA sources: map each user's promo code -> Affiliate / Web Content / Influencer.
+  // Spend = CPA x FTDs for Affiliate & Web Content; Influencer spend keeps coming from its own tab.
+  var affMap=affCpaMap(), affSrc={};
+  userRows.forEach(function(u){
+    if(!promoSetPaid[u.promo]) return;
+    var mm=affMatch(affMap,u.promo); if(!mm) return;
+    var lbl=mm.src; if(!selSet[lbl]) return;
+    var a=affSrc[lbl]||(affSrc[lbl]={reg:0,ftd:0,spend:0});
+    if(u.regDate&&inR(u.regDate,r)) a.reg++;
+    if(u.ftdDate&&inR(u.ftdDate,r)){ a.ftd++; if(lbl!=='Influencer') a.spend+=mm.cpa; }
+  });
+  spend+=(affSrc['Affiliate']?affSrc['Affiliate'].spend:0)+(affSrc['Web Content']?affSrc['Web Content'].spend:0);
+  // Registrations & FTDs: unique Users-tab counts when all sources are selected; per-source
+  // (AppsFlyer + affiliate CPA) attribution when a subset is chosen.
+  var regs=0,ftds=0,cntSub;
+  if(!narrowed){
+    userRows.forEach(function(u){
+      if(!promoSetPaid[u.promo]) return;
+      if((!r.from||u.regDate>=r.from)&&(!r.to||u.regDate<=r.to)) regs++;
+      if(u.ftdDate&&(!r.from||u.ftdDate>=r.from)&&(!r.to||u.ftdDate<=r.to)) ftds++;
+    });
+    cntSub='Users tab \u00b7 unique'+(promoNarrowed?' \u00b7 promo-filtered':'');
+  } else {
+    rows.forEach(function(x){ regs+=x.signups||0; ftds+=x.deposits||0; });
+    Object.keys(affSrc).forEach(function(k){ regs+=affSrc[k].reg; ftds+=affSrc[k].ftd; });
+    cntSub='AppsFlyer + affiliate \u00b7 '+(selectedSourcesPaid.length===1?selectedSourcesPaid[0]:selectedSourcesPaid.length+' sources');
+  }
+  var cards=[
+    ['Paid Spend',fmtM(spend)],['Impressions',fmt(imp)],['Clicks',fmt(clk)],
+    ['CTR',imp?(clk/imp*100).toFixed(2)+'%':'--'],['CPC',clk?money2(spend/clk):'--'],
+    ['Installs',fmt(inst)],['CPI',inst?money2(spend/inst):'--'],
+    ['Registrations',fmt(regs),cntSub],['Cost / Reg',regs?money2(spend/regs):'--'],
+    ['FTDs',fmt(ftds),cntSub],['CPFTD',ftds?money2(spend/ftds):'--']
+  ];
+  kg.innerHTML=cards.map(function(c){return '<div class="kpi-card"><div class="kpi-label">'+c[0]+'</div><div class="kpi-value">'+c[1]+'</div><div class="kpi-sub">'+(c[2]||'')+'</div></div>';}).join('');
+
+  var palette=['#17F6A4','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#60a5fa','#a3aaae'];
+  // [metric] by source (selector: spend / installs / registrations / ftds)
+  var pdm=paidDonutMetric, pdMoney=(pdm==='spend');
+  var bySrc={}; rows.forEach(function(x){ var v=pdm==='spend'?((ps[x.source]&&x.source!=='Affiliate')?x.spend:0):(pdm==='installs'?x.installs:(pdm==='registrations'?(x.signups||0):(x.deposits||0))); if(v)bySrc[x.source]=(bySrc[x.source]||0)+v; });
+  Object.keys(affSrc).forEach(function(lbl){ var v=pdm==='spend'?(lbl!=='Influencer'?affSrc[lbl].spend:0):(pdm==='registrations'?affSrc[lbl].reg:(pdm==='ftds'?affSrc[lbl].ftd:0)); if(v)bySrc[lbl]=(bySrc[lbl]||0)+v; });
+  var srcNames=Object.keys(bySrc).filter(function(s){return bySrc[s]>0;});
+  var pdTitle=document.getElementById('paidDonutTitle'); if(pdTitle)pdTitle.textContent=({spend:'Spend',installs:'Installs',registrations:'Registrations',ftds:'FTDs'}[pdm])+' by Source';
+  if(acqSpendChart)acqSpendChart.destroy();
+  var el1=document.getElementById('acqSpendChart');
+  if(el1) acqSpendChart=new Chart(el1,{type:'doughnut',plugins:[donutLabelPlugin],data:{labels:srcNames,datasets:[{data:srcNames.map(function(s){return bySrc[s];}),backgroundColor:srcNames.map(function(s,i){return palette[i%palette.length];}),borderWidth:0,hoverOffset:6}]},options:{responsive:true,donutMoney:pdMoney,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',boxWidth:10,padding:10}},tooltip:{callbacks:{label:function(c){return c.label+': '+(pdMoney?fmtM(c.raw):Math.round(c.raw).toLocaleString());}}}},cutout:'60%'}});
+
+  // installs / registrations / FTDs by source (AppsFlyer media sources), metric toggled by paidInstMetric
+  var instField={installs:'installs',registrations:'signups',ftds:'deposits'}[paidInstMetric]||'installs';
+  var instWord={installs:'installs',registrations:'registrations',ftds:'FTDs'}[paidInstMetric]||'installs';
+  var instColor={installs:'#3b82f6',registrations:'#8b5cf6',ftds:'#f59e0b'}[paidInstMetric]||'#3b82f6';
+  var iTitle=document.getElementById('acqInstTitle'); if(iTitle)iTitle.innerHTML=({installs:'Installs',registrations:'Registrations',ftds:'FTDs'}[paidInstMetric])+' by Source <span style="color:#475569;font-weight:400">(AppsFlyer)</span>';
+  var byInst={}; (DATA.appsflyer||[]).forEach(function(x){var src=x.mediaSource||x.platform||'AppsFlyer'; var val=x[instField]||0; if(val>0 && inR(x.date,r) && selSet[src])byInst[src]=(byInst[src]||0)+val; });
+  var instNames=Object.keys(byInst).sort(function(a,b){return byInst[b]-byInst[a];});
+  if(acqInstallChart)acqInstallChart.destroy();
+  var el2=document.getElementById('acqInstallChart');
+  if(el2) acqInstallChart=new Chart(el2,{type:'bar',data:{labels:instNames,datasets:[{label:instWord,data:instNames.map(function(s){return byInst[s];}),backgroundColor:instColor+'bb',borderRadius:4}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return ' '+Math.round(c.raw).toLocaleString()+' '+instWord;}}}},scales:{x:{ticks:{color:'#64748b'},grid:{color:'rgba(42,45,58,.5)'}},y:{ticks:{color:'#94a3b8'},grid:{display:false}}}}});
+
+  // Spend · Installs · Reg · FTD by source (AppsFlyer conversions + aligned ad-platform spend)
+  var bySrcAll={};
+  rows.forEach(function(x){var s=x.source;var o=bySrcAll[s]||(bySrcAll[s]={spend:0,installs:0,signups:0,deposits:0});if(ps[s]&&s!=='Affiliate')o.spend+=x.spend;o.installs+=x.installs;o.signups+=x.signups||0;o.deposits+=x.deposits||0;});
+  // Affiliate CPA sources: Registrations/FTDs from Users-tab promo codes; Affiliate & Web Content
+  // spend = CPA x FTDs; Influencer spend stays from its own tab.
+  Object.keys(affSrc).forEach(function(lbl){
+    var o=bySrcAll[lbl]||(bySrcAll[lbl]={spend:0,installs:0,signups:0,deposits:0});
+    o.signups=affSrc[lbl].reg; o.deposits=affSrc[lbl].ftd;
+    if(lbl!=='Influencer') o.spend=affSrc[lbl].spend;
+  });
+  // Organic = Users-tab totals minus every other source (only when all sources are selected),
+  // so the Registrations/FTDs columns reconcile to the Total row.
+  if(!narrowed){
+    var orgKey=Object.keys(bySrcAll).filter(function(k){return k.toLowerCase()==='organic';})[0]||'organic';
+    var org=bySrcAll[orgKey]||(bySrcAll[orgKey]={spend:0,installs:0,signups:0,deposits:0});
+    var otherReg=0, otherFtd=0;
+    Object.keys(bySrcAll).forEach(function(k){ if(k!==orgKey){ otherReg+=bySrcAll[k].signups||0; otherFtd+=bySrcAll[k].deposits||0; } });
+    org.signups=regs-otherReg; org.deposits=ftds-otherFtd;
+  }
+  var srcRows=Object.keys(bySrcAll).map(function(s){return {source:s,v:bySrcAll[s]};}).filter(function(o){return o.v.spend||o.v.installs||o.v.signups||o.v.deposits;});
+  srcRows.sort(function(a,b){return (b.v.spend-a.v.spend)||(b.v.installs-a.v.installs);});
+  document.getElementById('paidSrcHead').innerHTML='<th>Source</th><th class="num">Spend</th><th class="num">Installs</th><th class="num">Registrations</th><th class="num">FTDs</th><th class="num">Reg→FTD %</th><th class="num">CPI</th><th class="num">CPReg</th><th class="num">CPFTD</th>';
+  document.getElementById('paidSrcBody').innerHTML=srcRows.map(function(o){
+    var v=o.v;
+    return '<tr><td>'+o.source+'</td><td class="num">'+(v.spend?fmtM(v.spend):'--')+'</td><td class="num">'+fmt(v.installs)+'</td><td class="num">'+fmt(v.signups)+'</td><td class="num">'+fmt(v.deposits)+'</td><td class="num">'+(v.signups?(v.deposits/v.signups*100).toFixed(1)+'%':'--')+'</td><td class="num">'+(v.spend&&v.installs?money2(v.spend/v.installs):'--')+'</td><td class="num">'+(v.spend&&v.signups?money2(v.spend/v.signups):'--')+'</td><td class="num">'+(v.spend&&v.deposits?money2(v.spend/v.deposits):'--')+'</td></tr>';
+  }).join('');
+  document.getElementById('paidSrcTotal').innerHTML='<tr><td>Total</td><td class="num">'+fmtM(spend)+'</td><td class="num">'+fmt(inst)+'</td><td class="num">'+fmt(regs)+'</td><td class="num">'+fmt(ftds)+'</td><td class="num">'+(regs?(ftds/regs*100).toFixed(1)+'%':'--')+'</td><td class="num">'+(inst?money2(spend/inst):'--')+'</td><td class="num">'+(regs?money2(spend/regs):'--')+'</td><td class="num">'+(ftds?money2(spend/ftds):'--')+'</td></tr>';
+
+  document.getElementById('acqNote').innerHTML='<strong>Meta / Apple Search / AppsFlyer media sources:</strong> Installs, Registrations (sign-ups) and FTDs come from AppsFlyer; spend from the ad exports. <strong>Affiliate &amp; Web Content</strong> come from the Affiliate CPA tab — each promo code maps to a source, and spend = that code&rsquo;s CPA &times; its FTDs. <strong>Influencer</strong> Registrations/FTDs also come from the Affiliate CPA codes, but its spend still comes from the Influencer tab. <strong>Organic</strong> is the residual: Users-tab total minus every other source, so the Registrations and FTDs columns add up to the Total.';
+  renderUserGroupTable('promoTable',function(u){var p=u.promo||''; return /^ST/i.test(p)?'Referral (ST-*)':p;},'Promo Code','ftds','acq',null,selectedPromosPaid,true,true);
+}
+
+/* ============ ACTIVE USERS VIEW ============ */
+function renderActive(){
+  var el=document.getElementById('engKpis'); if(!el) return;
+  var r=getRange('eng');
+  var ga=(DATA.ga4||[]).filter(function(x){return inR(x.date,r);}).sort(function(a,b){return a.date<b.date?-1:1;});
+  var last=ga[ga.length-1]||{}, first=ga[0]||{};
+  var avgDau=ga.length?ga.reduce(function(s,x){return s+x.dau;},0)/ga.length:0;
+  var avgWau=ga.length?ga.reduce(function(s,x){return s+x.wau;},0)/ga.length:0;
+  var avgMau=ga.length?ga.reduce(function(s,x){return s+x.mau;},0)/ga.length:0;
+  var peakDau=ga.length?ga.reduce(function(m,x){return Math.max(m,x.dau);},0):0;
+  var stick=(last.mau)?last.dau/last.mau:null;
+  var dauWau=(last.wau)?last.dau/last.wau:null;
+  var mauGrowth=(first.mau&&last.mau)?(last.mau-first.mau)/first.mau:null;
+  el.innerHTML=[
+    ['Latest DAU',ga.length?fmt(last.dau):'--'],['Latest WAU',ga.length?fmt(last.wau):'--'],['Latest MAU',ga.length?fmt(last.mau):'--'],
+    ['Avg DAU',ga.length?fmt(avgDau):'--'],['Peak DAU',ga.length?fmt(peakDau):'--'],
+    ['Stickiness (DAU/MAU)',stick===null?'--':(stick*100).toFixed(1)+'%'],
+    ['DAU / WAU',dauWau===null?'--':(dauWau*100).toFixed(1)+'%'],
+    ['MAU Growth',mauGrowth===null?'--':(mauGrowth>=0?'+':'')+(mauGrowth*100).toFixed(1)+'%']
+  ].map(function(c){return '<div class="kpi-card"><div class="kpi-label">'+c[0]+'</div><div class="kpi-value">'+c[1]+'</div><div class="kpi-sub"></div></div>';}).join('');
+  if(engChart)engChart.destroy();
+  var ce=document.getElementById('engChart');
+  if(ce) engChart=new Chart(ce,{type:'line',data:{labels:ga.map(function(x){return x.date.slice(5);}),datasets:[
+    {label:'DAU',data:ga.map(function(x){return x.dau;}),borderColor:'#17F6A4',backgroundColor:'rgba(23,246,164,.1)',tension:.3,fill:true,pointRadius:0},
+    {label:'WAU',data:ga.map(function(x){return x.wau;}),borderColor:'#3b82f6',tension:.3,pointRadius:0},
+    {label:'MAU',data:ga.map(function(x){return x.mau;}),borderColor:'#f59e0b',tension:.3,pointRadius:0}]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#94a3b8',boxWidth:12}}},scales:{x:{ticks:{color:'#64748b',maxTicksLimit:14},grid:{color:'rgba(42,45,58,.5)'}},y:{ticks:{color:'#64748b'},grid:{color:'rgba(42,45,58,.5)'}}}}});
+  document.getElementById('engNote').innerHTML=(ga.length?'':'Load Active Users (GA4) to populate the charts above. ')+'Stickiness = latest DAU \u00f7 latest MAU.';
+  renderNewVsReturning();
+  renderCohortRetention();
+}
+
+/* ============ LTV MODEL VIEW ============ */
+function ltvMIdx(s){return parseInt(s.slice(0,4),10)*12+parseInt(s.slice(5,7),10)-1;}
+function ltvExcluded(promo){return /skinny/i.test(promo||'');}
+function ltvComputeModel(){
+  var START='2025-01-01';
+  var D=userRows.filter(function(u){return u.ftdDate && u.ftdDate>=START && !ltvExcluded(u.promo);});
+  var nDep=D.length;
+  if(!nDep){ ltvModel={ok:false}; return; }
+  var ftdMonthById={}, ggrSum=0, handleSum=0, bonusSum=0;
+  D.forEach(function(u){ ftdMonthById[u.id]=ltvMIdx(u.ftdDate); ggrSum+=u.ggr; handleSum+=u.handle; bonusSum+=u.bonus; });
+  // Sum handle by months-since-FTD from the Cohort Activity tab (excludes non-2025+ / SKINNY via the id map).
+  var byOff={}, maxOff=0;
+  (DATA.cohort||[]).forEach(function(x){
+    if(!x.id || !(x.id in ftdMonthById) || !x.activityDate) return;
+    var off=ltvMIdx(x.activityDate)-ftdMonthById[x.id];
+    if(off>=0){ byOff[off]=(byOff[off]||0)+x.handle; if(off>maxOff)maxOff=off; }
+  });
+  // Fit monthly handle ratio r_m = A*(m+1)^-B on observed offsets m>=1 (OLS in log-log), month 0 normalised to 1.
+  var A=1.082, B=1.438, R2=null, fitted=false;
+  if(byOff[0]>0){
+    var xs=[],ys=[];
+    for(var o=1;o<=maxOff;o++){ if(byOff[o]>0){ xs.push(Math.log(o+1)); ys.push(Math.log(byOff[o]/byOff[0])); } }
+    if(xs.length>=2){
+      var nn=xs.length,sx=0,sy=0,sxx=0,sxy=0,k;
+      for(k=0;k<nn;k++){ sx+=xs[k]; sy+=ys[k]; sxx+=xs[k]*xs[k]; sxy+=xs[k]*ys[k]; }
+      var den=(nn*sxx-sx*sx);
+      if(den!==0){
+        var b=(nn*sxy-sx*sy)/den, a=(sy-b*sx)/nn;
+        var fa=Math.exp(a), fb=-b, ybar=sy/nn, ssTot=0, ssRes=0;
+        for(k=0;k<nn;k++){ var pred=a+b*xs[k]; ssTot+=(ys[k]-ybar)*(ys[k]-ybar); ssRes+=(ys[k]-pred)*(ys[k]-pred); }
+        var r2=ssTot>0?(1-ssRes/ssTot):null;
+        if(isFinite(fa)&&isFinite(fb)&&fb>0.1&&fb<5){ A=fa; B=fb; R2=r2; fitted=true; }
+      }
+    }
+  }
+  var ps=paidSourceSet(), spend=0;
+  acqRows().forEach(function(x){ if(x.date && x.date>=START && ps[x.source]) spend+=x.spend; });
+  function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+  var month0=byOff[0]>0?byOff[0]/nDep:0;
+  var realizedHold=handleSum>0?(ggrSum/handleSum*100):0;
+  ltvModel={ ok:true, A:A, B:B, R2:R2, fitted:fitted, nDep:nDep, maxOff:maxOff,
+    realizedHold:realizedHold, cac:nDep?spend/nDep:0, spend:spend,
+    seedHandle:200,
+    seedHold:'17.0',
+    seedBonus:50,
+    seedCac:Math.round(clamp(nDep?spend/nDep:30,0,800)) };
+}
+function ltvInit(){
+  if(!document.getElementById('ltvHandle')) return;
+  ltvComputeModel();
+  ['ltvHandle','ltvHold','ltvBonus','ltvCac','ltvHor'].forEach(function(id){
+    var e=document.getElementById(id); if(e && !e.__ltvBound){ e.addEventListener('input',renderLtv); e.__ltvBound=true; }
+  });
+  if(ltvModel && ltvModel.ok){
+    var set=function(id,v){var e=document.getElementById(id); if(e)e.value=v;};
+    set('ltvHandle',ltvModel.seedHandle); set('ltvHold',ltvModel.seedHold);
+    set('ltvBonus',ltvModel.seedBonus); set('ltvCac',ltvModel.seedCac);
+  }
+}
+function renderLtv(){
+  if(!document.getElementById('ltvChart')) return;
+  var mdl=ltvModel;
+  var setTxt=function(id,t){var e=document.getElementById(id); if(e)e.textContent=t;};
+  if(!mdl || !mdl.ok){
+    setTxt('ltvVMain','—');
+    setTxt('ltvVNote','Load the Users and Cohort Activity tabs to build the model — it needs first-deposit dates and dated wagering activity from Jan 2025 onward.');
+    document.getElementById('ltvChart').innerHTML=''; document.getElementById('ltvTbody').innerHTML=''; document.getElementById('ltvNotes').innerHTML='';
+    return;
+  }
+  var val=function(id){return +document.getElementById(id).value;};
+  var A=mdl.A,B=mdl.B; var ratio=function(m){return m===0?1:A*Math.pow(m+1,-B);};
+  var BONUS_CUM=[0.753,0.878,0.915,0.947,0.968,0.985,1.00];
+  function bonusCum(m){return m>=BONUS_CUM.length?1:BONUS_CUM[m];}
+  var h0=val('ltvHandle'), holdPct=val('ltvHold'), hold=holdPct/100, bonus=val('ltvBonus'), cac=val('ltvCac'), months=val('ltvHor');
+  setTxt('ltvHandleLbl','$'+h0); setTxt('ltvHoldLbl',holdPct.toFixed(1)+'%'); setTxt('ltvBonusLbl','$'+bonus); setTxt('ltvCacLbl','$'+cac); setTxt('ltvHorLbl',months+' mo');
+  var rows=[], cumH=0, m;
+  for(m=0;m<months;m++){ var mh=h0*ratio(m); cumH+=mh; var ggr=cumH*hold; var bon=bonus*bonusCum(m); rows.push({m:m,mh:mh,cumH:cumH,ggr:ggr,bon:bon,ngr:ggr-bon}); }
+  var last=rows[months-1];
+  var idx=Math.min(11,months-1), sel=rows[idx];
+  setTxt('ltvVLabel','Projected '+(idx+1)+'-month LTV per depositor');
+  setTxt('ltvVMain',fmtM(sel.ngr));
+  document.getElementById('ltvVMain').className='ltv-val '+(sel.ngr<0?'ltv-neg':'ltv-pos');
+  setTxt('ltvVAfter','· '+fmtM(sel.ngr-cac)+' after CAC');
+  setTxt('ltvVNote','$'+h0+' month-0 handle grows to '+fmtM(sel.cumH)+' wagered, which at '+holdPct.toFixed(1)+'% returns '+fmtM(sel.ggr)+' of GGR, less '+fmtM(sel.bon)+' of bonus.'+(hold>0.13?' That hold sits above the '+mdl.realizedHold.toFixed(1)+'% your data currently supports, so read this as a target, not a forecast.':''));
+  setTxt('ltvOHandle',fmtM(last.cumH));
+  setTxt('ltvOMult',(last.cumH/h0).toFixed(2)+'× month-0');
+  setTxt('ltvOGgr',fmtM(last.ggr));
+  setTxt('ltvONgr',fmtM(last.ngr));
+  document.getElementById('ltvONgr').className='ltv-stat-v '+(last.ngr<0?'ltv-neg':'ltv-pos');
+  var cm=last.ngr-cac; setTxt('ltvOCm',fmtM(cm));
+  document.getElementById('ltvOCm').className='ltv-stat-v '+(cm<0?'ltv-neg':'ltv-pos');
+  var be=last.cumH>0?(bonus+cac)/last.cumH*100:0; setTxt('ltvOBe',be.toFixed(1)+'%');
+  document.getElementById('ltvOBe').className='ltv-stat-v '+(be>13?'ltv-neg':'ltv-pos');
+  var pb=null; for(var i=0;i<months;i++){ if(rows[i].ngr>=cac){ pb=i; break; } }
+  setTxt('ltvOPb',pb===null?'never':'M'+pb);
+  document.getElementById('ltvOPb').className='ltv-stat-v '+(pb===null?'ltv-neg':'ltv-pos');
+  var t='';
+  for(var j=0;j<months;j++){ var r=rows[j]; t+='<tr><td>M'+r.m+'</td><td>'+fmtM(r.mh)+'</td><td>'+fmtM(r.cumH)+'</td><td>'+fmtM(r.ggr)+'</td><td>'+fmtM(-r.bon)+'</td><td class="'+(r.ngr<0?'ltv-neg':'ltv-pos')+'">'+fmtM(r.ngr)+'</td></tr>'; }
+  document.getElementById('ltvTbody').innerHTML=t;
+  ltvDraw(rows,cac);
+  ltvNotes(mdl,holdPct);
+}
+function ltvDraw(rows,cac){
+  var W=720,H=340,P={t:16,r:16,b:34,l:64};
+  var iw=W-P.l-P.r, ih=H-P.t-P.b, n=rows.length, i;
+  var vals=[]; for(i=0;i<n;i++)vals.push(rows[i].ngr); vals.push(cac,0);
+  var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
+  var pd=(mx-mn)*0.12||10; mn-=pd; mx+=pd;
+  var X=function(k){return P.l+(n<=1?0:k/(n-1)*iw);};
+  var Y=function(v){return P.t+ih-(v-mn)/(mx-mn)*ih;};
+  var s='';
+  for(var g=0;g<=4;g++){ var gv=mn+(mx-mn)*g/4, gy=Y(gv);
+    s+='<line x1="'+P.l+'" y1="'+gy+'" x2="'+(W-P.r)+'" y2="'+gy+'" stroke="#2a2d3a" stroke-width="1"/>';
+    s+='<text x="'+(P.l-8)+'" y="'+(gy+4)+'" fill="#64748b" font-size="10" font-family="monospace" text-anchor="end">'+fmtM(gv)+'</text>'; }
+  if(mn<0&&mx>0){ s+='<line x1="'+P.l+'" y1="'+Y(0)+'" x2="'+(W-P.r)+'" y2="'+Y(0)+'" stroke="#64748b" stroke-width="1" stroke-dasharray="3 3"/>'; }
+  if(cac>mn&&cac<mx){ s+='<line x1="'+P.l+'" y1="'+Y(cac)+'" x2="'+(W-P.r)+'" y2="'+Y(cac)+'" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5 4"/>';
+    s+='<text x="'+(W-P.r)+'" y="'+(Y(cac)-7)+'" fill="#f59e0b" font-size="10" font-family="monospace" text-anchor="end">CAC '+fmtM(cac)+'</text>'; }
+  var mp=''; for(i=0;i<n;i++){ mp+=(i?'L':'M')+X(i)+' '+Y(rows[i].ngr); }
+  s+='<path d="'+mp+'" fill="none" stroke="#17F6A4" stroke-width="2.5" stroke-linejoin="round"/>';
+  s+='<circle cx="'+X(n-1)+'" cy="'+Y(rows[n-1].ngr)+'" r="4" fill="#17F6A4"/>';
+  var xi=null,pm=null,c;
+  for(c=0;c<n;c++){ if(rows[c].ngr>=cac){ pm=c; if(c===0){xi=0;} else { var a0=rows[c-1].ngr,a1=rows[c].ngr; xi=(a1===a0)?c:(c-1)+(cac-a0)/(a1-a0); } break; } }
+  if(xi!==null){ var cx=X(xi),cy=Y(cac);
+    s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+cx+'" y2="'+(P.t+ih)+'" stroke="#f59e0b" stroke-width="1" stroke-dasharray="2 3" opacity="0.7"/>';
+    s+='<circle cx="'+cx+'" cy="'+cy+'" r="6" fill="none" stroke="#f59e0b" stroke-width="1.5"/><circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#f59e0b"/>';
+    var anch=xi>n*0.75?'end':'start', dx=xi>n*0.75?-10:10;
+    s+='<text x="'+(cx+dx)+'" y="'+(cy-12)+'" fill="#f59e0b" font-size="11" font-weight="600" font-family="monospace" text-anchor="'+anch+'">payback M'+pm+'</text>'; }
+  var step=n>24?6:(n>12?3:(n>6?2:1));
+  for(i=0;i<n;i+=step){ s+='<text x="'+X(i)+'" y="'+(H-12)+'" fill="#64748b" font-size="10" font-family="monospace" text-anchor="middle">M'+i+'</text>'; }
+  document.getElementById('ltvChart').innerHTML=s;
+}
+function ltvNotes(mdl,holdPct){
+  var decay=mdl.fitted
+    ? 'Monthly handle per depositor is fitted live to a power curve <b>'+mdl.A.toFixed(3)+'·(m+1)<sup>−'+mdl.B.toFixed(3)+'</sup></b>'+(mdl.R2!=null?', R²='+mdl.R2.toFixed(2):'')+', across '+mdl.maxOff+' observed months. Month 0 is normalised to 1×.'
+    : 'Not enough cohort history to fit the decay curve, so a default power curve ('+mdl.A.toFixed(3)+'·(m+1)<sup>−'+mdl.B.toFixed(3)+'</sup>) is used. Load more Cohort Activity to fit it live.';
+  var notes=[
+    ['01','<b>Population.</b> '+fmt(mdl.nDep)+' depositors who first deposited from Jan 2025 onward. Registrations under promo code SKINNY are excluded (case- and whitespace-insensitive).'],
+    ['02','<b>Handle decay.</b> '+decay+' Beyond the observed window the curve is extrapolation.'],
+    ['03','<b>Hold.</b> GGR = cumulative handle × the hold you set. Realized hold in this window is <b>'+mdl.realizedHold.toFixed(1)+'%</b> — thin and whale-sensitive, so treat the slider as a target'+(holdPct>mdl.realizedHold?', which it currently exceeds':'')+'.'],
+    ['04','<b>Bonus.</b> Expensed on an observed phasing curve (~75% in month 0, tailing to month 6). The cohort feed carries no monthly bonus, so this phasing is assumed rather than refit.'],
+    ['05','<b>CAC.</b> Blended paid spend since Jan 2025 ('+fmtM(mdl.spend)+') ÷ '+fmt(mdl.nDep)+' depositors = <b>'+fmtM(mdl.cac)+'</b>. Payback is where cumulative net LTV crosses CAC.']
+  ];
+  document.getElementById('ltvNotes').innerHTML=notes.map(function(nn){return '<div class="ltv-noterow"><span class="ltv-m">'+nn[0]+'</span><div>'+nn[1]+'</div></div>';}).join('');
+}
+
+/* ============ POST-LOAD REFRESH ============ */
+function refreshAfterLoad(){
+  if(!document.getElementById('view-gaming')) return;
+  var srcSet={}; acqRows().forEach(function(x){srcSet[x.source]=1;});
+  affCpaSourceLabels().forEach(function(s){srcSet[s]=1;});
+  allSources=Object.keys(srcSet).sort();
+  selectedSources=allSources.slice(); selectedSourcesPaid=allSources.slice();
+  if(document.getElementById('sourceDropdown')) buildMs('source',allSources,selectedSources);
+  if(document.getElementById('psourceDropdown')) buildMs('psource',allSources,selectedSourcesPaid);
+  var spSet={}; (DATA.cohort||[]).forEach(function(x){spSet[x.sport]=1;});
+  allSports=Object.keys(spSet).sort(); selectedSports=allSports.slice();
+  if(document.getElementById('sportDropdown')) buildMs('sport',allSports,selectedSports);
+  ltvInit();
+  renderView(currentView);
+}
+
+/* ============ SAMPLE + INIT ============ */
+function dataDateRange(){
+  var ds=[];
+  (DATA.appsflyer||[]).forEach(function(x){ds.push(x.date);});
+  (DATA.meta||[]).forEach(function(x){ds.push(x.date);});
+  (DATA.apple||[]).forEach(function(x){ds.push(x.date);});
+  (DATA.ga4||[]).forEach(function(x){ds.push(x.date);});
+  (DATA.cohort||[]).forEach(function(x){ds.push(x.activityDate);});
+  ds=ds.filter(Boolean).sort();
+  return ds.length?{min:ds[0],max:ds[ds.length-1]}:{min:'2026-01-01',max:'2026-12-31'};
+}
+function bootstrapEmpty(){
+  userRows=[]; allStates=[]; allPromos=[]; selectedStates=[]; selectedPromos=[];
+  var r=dataDateRange(); minDate=r.min; maxDate=r.max;
+  updateSync(); renderShell(); initFilters(); switchView(currentView);
+}
+
+(async function(){
+  var loaded=await loadSaved();
+  if(!loaded){ bootstrapEmpty(); }
+  refreshAfterLoad();
+  if(SHEET_IDS.some(function(id){return sheetUrl(id);})) syncSheets();
+})();
+</script>
+</body>
+</html>
